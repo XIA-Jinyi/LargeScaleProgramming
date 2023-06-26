@@ -27,7 +27,7 @@ class Message:
         """初始化消息"""
         self.attributes = {}
         """消息属性"""
-        self.content: bytes = ''
+        self.content: bytes = None
         """消息内容"""
 
 
