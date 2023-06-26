@@ -1,48 +1,45 @@
-from enum import Enum
 from typing import Callable
+from Model import User, Message, Response
 
 
-class Response:
-    """消息响应"""
+class FriendListener:
+    """好友监听器"""
 
-    class Status(Enum):
-        """消息响应状态"""
-        Positive = 1
-        """正向反馈"""
-        Negative = -1
-        """负向反馈"""
-        Timeout = -2
-        """超时反馈"""
-        BadConnection = -3
-        """连接错误反馈"""
-        OtherError = -4
-        """其他错误反馈"""
-        Null = 0
-        """空反馈"""
+    def __init__(self,
+                 status_callback: Callable[[User], None],
+                 new_callback: Callable[[User], None],
+                 delete_callback: Callable[[User], None],
+                 init_callback: Callable[[list[User]], None]):
+        """初始化好友监听器
 
-    class Source(Enum):
-        """消息响应来源"""
-        Undefined = 0
-        """未定义"""
-        Server = 1
-        """服务器"""
-        Peer = 2
+        Args:
+            status_callback (Callable[[User], None]): 好友状态改变时，回调此函数
+            new_callback (Callable[[User], None]): 有新好友请求时，回调此函数
+            delete_callback (Callable[[User], None]): 好友被删除时，回调此函数
+            init_callback (Callable[[list[User]], None]): 初始化好友列表时，回调此函数
+        """
+        pass
 
-    def __init__(self):
-        """初始化消息响应"""
-        self.content = {}
-        """响应内容"""
-        self.status = self.Status.Null
-        """响应状态"""
-        self.source = self.Source.Undefined
-        """响应来源"""
+    def run(self) -> None:
+        """启动好友监听器"""
+        pass
 
 
 class ServerConnection:
+    """服务器连接"""
+
     def __init__(self):
         """初始化服务器连接"""
         self.last_response = Response()
         """上一次的消息响应"""
+        pass
+
+    def connect(self) -> Response:
+        """连接到服务器
+
+        Returns:
+            Response: 响应
+        """
         pass
 
     def refresh(self) -> Response:
@@ -59,6 +56,19 @@ class ServerConnection:
         Args:
             email (str): 电子邮件地址
             
+        Returns:
+            Response: 响应
+        """
+        pass
+
+    def register(email: str, username: str, password: str, vericode: str) -> Response:
+        """注册
+
+        Args:
+            username (str): 用户名
+            password (str): 密码
+            vericode (str): 验证码
+
         Returns:
             Response: 响应
         """
@@ -88,11 +98,14 @@ class ServerConnection:
         """
         pass
 
-    def query_friend_list(self) -> Response:
-        """请求好友列表
+    def bind_friend_listener(self, friend_listener: FriendListener) -> Response:
+        """绑定好友监听器
+
+        Args:
+            friend_listener (FriendListener): 好友监听器
 
         Returns:
-            Response: 响应 (`Response.content['value']` 为好友列表)
+            Response: 响应
         """
         pass
 
@@ -103,7 +116,7 @@ class ServerConnection:
             user_email (str): 邮件地址
 
         Returns:
-            Response: 响应 (`Response.status.Negative`)
+            Response: 响应
         """
         pass
 
@@ -111,64 +124,91 @@ class ServerConnection:
         """添加好友
 
         Args:
-            friend_email (str): _description_
+            friend_email (str): 邮箱地址
 
         Returns:
-            Response: _description_
+            Response: 响应
         """
         pass
 
     def delete_friend(self, friend_email: str) -> Response:
+        """删除好友
+
+        Args:
+            friend_email (str): 邮箱地址
+
+        Returns:
+            Response: 响应
+        """
         pass
 
     def start_chat(self, friend_email: str) -> Response:
+        """发起对话
+
+        Args:
+            friend_email (str): 邮箱地址
+
+        Returns:
+            Response: 响应
+        """
         pass
 
     def close(self) -> Response:
+        """关闭连接
+
+        Returns:
+            Response: 响应
+        """
         pass
 
 
 class PeerListener:
-    def __init__(self, recv_callback: Callable[[str, float, bytes], None]):
-        """_summary_
+    """伙伴监听器"""
+
+    def __init__(self, recv_callback: Callable[[str, float, Message], None]):
+        """初始化伙伴监听器
 
         Args:
-            recv_callback (Callable[[str, float, bytes], None]): _description_
+            recv_callback (Callable[[str, float, Message], None]): 收到消息后，回调此函数，参数依次为邮件地址、时间戳、消息
         """
         self.callback = recv_callback
         pass
 
     def run(self) -> None:
+        """启动伙伴监听器"""
         pass
 
 
 class PeerSender:
+    """伙伴发送器"""
+
     def __init__(self, server_response: Response):
+        """初始化伙伴发送器
+
+        Args:
+            server_response (Response): `ServerConnection.start_chat` 的返回值
+        """
         self.dest_email: str = None
         self.dest_ip: str = None
         self.dest_port: int = None
         self.last_response = Response()
         pass
 
-    def send(self, message: bytes) -> Response:
+    def send(self, message: Message) -> Response:
+        """发送消息
+
+        Args:
+            message (Message): 消息对象
+
+        Returns:
+            Response: 响应
+        """
         pass
 
     def close(self) -> Response:
+        """关闭连接
+
+        Returns:
+            Response: 响应
+        """
         pass
-
-
-class Demo:
-    def __init__(self):
-        self.rcvd = []
-
-    def add(self, email, time, msg):
-        self.rcvd.append((email, time, msg))
-
-
-if __name__ == '__main__':
-    demo = Demo()
-    pl = PeerListener(demo.add)
-    pl.callback('123@abc.com', '100', b'Hello!')
-    pl.callback('123@abc.com', '200', b'Hello!')
-    pl.callback('123@abc.com', '300', b'Hello!')
-    print(demo.rcvd)
