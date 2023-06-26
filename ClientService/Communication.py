@@ -8,6 +8,7 @@ class FriendListener:
     def __init__(self,
                  status_callback: Callable[[User], None],
                  new_callback: Callable[[User], None],
+                 add_callback: Callable[[User], None],
                  delete_callback: Callable[[User], None],
                  init_callback: Callable[[list[User]], None]):
         """初始化好友监听器
@@ -15,6 +16,7 @@ class FriendListener:
         Args:
             status_callback (Callable[[User], None]): 好友状态改变时，回调此函数
             new_callback (Callable[[User], None]): 有新好友请求时，回调此函数
+            add_callback (Callable[[User], None]): 新好友请求通过时，回调此函数
             delete_callback (Callable[[User], None]): 好友被删除时，回调此函数
             init_callback (Callable[[list[User]], None]): 初始化好友列表时，回调此函数
         """
