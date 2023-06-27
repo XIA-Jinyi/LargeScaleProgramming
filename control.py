@@ -262,6 +262,7 @@ def request_add_friend(target_email):  # 如果成功就返回1，不然就返�
 
 def confirm_add_friend(target_email):  # 如果成功就返回1，不然就返回0和错误码
     global sc
+    global friend_new_ls
     sc.confirm_friend(target_email)
     if sc.last_response != Response.Status.Positive:
         return 0, sc.last_response
