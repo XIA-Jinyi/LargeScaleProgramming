@@ -14,6 +14,10 @@ ver_code=''
 P_sender=None
 message=Message()
 #new_friend_cnt=0
+def update_front_friend_ls():#提醒前端更新friend_list
+    front_update_friend_ls()
+def update_front_friend_new_ls():#提醒前端更新好友申请列表
+    front_update_friend_new_ls()
 def build_message(str):#前后端信息格式转换
     global message
     message.attributes={}
@@ -101,13 +105,20 @@ def callbak_new_friend_request(user):
     #别人来的新好友请求，要和前端商量怎么提示
     global friend_new_ls
     friend_new_ls.append(user)
+    update_front_friend_new_ls()
     return
 def callbak_confirm_new_friend(user):
     #确认新好友请求
     global friend_ls
+    for i in range(len(friend_new_ls)):
+        if friend_new_ls[i].email==user.email:
+            del friend_new_ls[i]
+            break
     friend_ls_lock.acquire()
     friend_ls.append(user)
     friend_ls_lock.release()
+    update_front_friend_ls()
+    update_front_friend_new_ls()
     return
 def callbak_add_new_friend(user):
     #我请求加别人好友，别人通过了
@@ -115,6 +126,7 @@ def callbak_add_new_friend(user):
     friend_ls_lock.acquire()
     friend_ls.append(user)
     friend_ls_lock.release()
+    update_front_friend_ls()
     return
 def callbak_delete_friend(user):
     global friend_ls
@@ -124,12 +136,14 @@ def callbak_delete_friend(user):
             del friend_ls[i]
             break
     friend_ls_lock.release()
+    update_front_friend_ls()
     return
 def callbak_init_friend_list(acquired_friend_ls):
     global friend_ls
     friend_ls_lock.acquire()
     friend_ls=acquired_friend_ls
     friend_ls_lock.release()
+    update_front_friend_ls()
     return
 
 def recv_message(email,time_stamp,message_recv):
