@@ -98,12 +98,19 @@ def callbak_update_friend_status(user):
     return
 
 def callbak_new_friend_request(user):
-    #新好友请求，要和前端商量怎么提示
+    #别人来的新好友请求，要和前端商量怎么提示
     global friend_new_ls
     friend_new_ls.append(user)
     return
-def callbak_add_new_friend(user):
+def callbak_confirm_new_friend(user):
     #确认新好友请求
+    global friend_ls
+    friend_ls_lock.acquire()
+    friend_ls.append(user)
+    friend_ls_lock.release()
+    return
+def callbak_add_new_friend(user):
+    #我请求加别人好友，别人通过了
     global friend_ls
     friend_ls_lock.acquire()
     friend_ls.append(user)
@@ -175,9 +182,15 @@ def send_message(target_email):
                        (client_email, target_email, time.time(), base64_string))
         message_db_con.commit()
     return
-def add_friend(target_email):#如果成功就返回1，不然就返回0和错误码
+def request_add_friend(target_email):#如果成功就返回1，不然就返回0和错误码
     global sc
     sc.add_friend(target_email)
+    if sc.last_response!=Response.Status.Positive:
+        return 0,sc.last_response
+    else: return 1,0
+def confirm_add_friend(target_email):#如果成功就返回1，不然就返回0和错误码
+    global sc
+    sc.confirm_friend(target_email)
     if sc.last_response!=Response.Status.Positive:
         return 0,sc.last_response
     else :return 1,0
