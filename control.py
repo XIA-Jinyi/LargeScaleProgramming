@@ -14,15 +14,32 @@ client_account = ''
 ver_code = ''
 P_sender = None
 message = Message()
+front_entity = BuptChat('', '')
 
 
 # new_friend_cnt=0
+def update_front_entity(real_one):
+    global front_entity
+    front_entity = real_one
+    return
+
+
 def update_front_friend_ls():  # 提醒前端更新friend_list
-    front_update_friend_ls()
+    global front_entity
+    front_entity.front_update_friend_ls()
+    return
 
 
 def update_front_friend_new_ls():  # 提醒前端更新好友申请列表
-    front_update_friend_new_ls()
+    global front_entity
+    front_entity.front_update_friend_new_ls()
+    return
+
+
+def update_communication(email):
+    global front_entity
+    front_entity.paint_message()
+    return
 
 
 def build_message(message_str):  # 前后端信息格式转换
@@ -194,6 +211,7 @@ def recv_message(email, time_stamp, message_recv):
     cursor.execute("INSERT INTO message (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
                    (email, client_account, time_stamp, base64_string))
     message_db_con.commit()
+    update_communication(email)
     return
 
 
