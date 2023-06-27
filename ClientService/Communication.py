@@ -1,5 +1,9 @@
 from typing import Callable
 from Model import User, Message, Response
+import json
+import socket
+import Const
+import time
 
 
 class FriendListener:
@@ -32,9 +36,10 @@ class ServerConnection:
 
     def __init__(self):
         """初始化服务器连接"""
+        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__is_sock_closed = True
         self.last_response = Response()
         """上一次的消息响应"""
-        pass
 
     def connect(self) -> Response:
         """连接到服务器
@@ -42,7 +47,45 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        pass
+        errno = self.__sock.connect_ex((Const.server_ip, Const.server_port))
+        retval = Response()
+        retval.source = Response.Source.Server
+        if errno != 0:
+            retval.status = Response.Status.BadConnection
+            retval.content = {'errno': errno, 'message': 'Connecting socket failed.'}
+            return retval
+        self.__is_sock_closed = False
+        retval.status = Response.Status.Positive
+        return retval
+
+
+    def __send(self, op: str = 'hello', **kwargs) -> Response:
+        retval = Response()
+        retval.source = Response.Source.Server
+        retval.status = Response.Status.BadConnection
+        if self.__is_sock_closed:
+            retval.content = {'message': 'Socket closed.'}
+            return retval
+        msg = {'op': op, 'content': kwargs}
+        try:
+            self.__sock.send(json.dumps(msg).encode('utf-8'))
+        except:
+            retval.content = {'message': 'Sending failed.'}
+            return retval
+        try:
+            echo = self.__sock.recv(Const.buf_len)
+        except:
+            retval.content = {'message': 'Receiving failed.'}
+            return retval
+        try:
+            echo = json.loads(echo.decode('utf-8'))
+            retval.status = Response.Status(echo['status'])
+            retval.content = Response.Status(echo['content'])
+        except:
+            retval.Status = Response.Status.OtherError
+            retval.content = {'message': 'Parsing message failed.'}
+        return retval
+
 
     def refresh(self) -> Response:
         """刷新连接
@@ -50,7 +93,7 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        pass
+        return self.__send()
 
     def update_vericode(self, email: str) -> Response:
         """更新验证码并发送邮件
@@ -133,6 +176,17 @@ class ServerConnection:
         """
         pass
 
+    def confirm_friend(self, friend_email: str) -> Response:
+        """确认添加好友
+
+        Args:
+            friend_email (str): 邮箱地址
+
+        Returns:
+            Response: 响应
+        """
+        pass
+
     def delete_friend(self, friend_email: str) -> Response:
         """删除好友
 
@@ -161,7 +215,7 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        pass
+        return self.__send('close')
 
 
 class PeerListener:
@@ -214,3 +268,12 @@ class PeerSender:
             Response: 响应
         """
         pass
+
+
+if __name__ == '__main__':
+    hint = input('Hint: ')
+    sc = ServerConnection()
+    sc.connect()
+    while True:
+        print(sc.refresh().status)
+        time.sleep(2)
