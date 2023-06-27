@@ -43,7 +43,7 @@ def login(email,pwd):#如果成功返回1，错误返回0，后面跟返回码
     global ver_code
     if pwd=='':
         #验证码登录
-        if response!=Response.Status.Positive:
+        if sc.last_response.status!=Response.Status.Positive:
             #连接错误,返回0和错误码
             return 0,response.status
         else:
