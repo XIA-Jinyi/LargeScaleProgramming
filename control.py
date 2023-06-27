@@ -56,6 +56,11 @@ def login(email, pwd):  # 如果成功返回1，错误返回0，后面跟返回�
     global sc
     global client_account
     global ver_code
+    global friend_ls
+    global friend_new_ls
+    # 清空list
+    friend_ls = []
+    friend_new_ls = []
     if pwd == '':
         # 验证码登录
         if sc.last_response.status != Response.Status.Positive:
@@ -64,23 +69,23 @@ def login(email, pwd):  # 如果成功返回1，错误返回0，后面跟返回�
         else:
             # 验证码发送正确
             # ver_code=get_verify()
-            response = sc.vericode_login(email, ver_code)
-            if response != Response.Status.Positive:
+            response_lo = sc.vericode_login(email, ver_code)
+            if response_lo.status != Response.Status.Positive:
                 # 连接错误或者验证码错误
                 # if response==Response.Status.NegativeClose:
                 sc.close()
-                return 0, response.status
+                return 0, response_lo.status
             else:
                 # 登陆成功
                 client_account = email
                 return 1, 0
     else:
         # 密码登录
-        response = sc.password_login(email, pwd)
-        if response != Response.Status.Positive:
+        response_lo = sc.password_login(email, pwd)
+        if response_lo.status != Response.Status.Positive:
             # 连接错误或者密码错误
             sc.close()
-            return 0, response.status
+            return 0, response_lo.status
         else:
             client_account = email
             return 1, 0
@@ -217,14 +222,15 @@ def send_message(target_email):
                 recver CHAR(50)     NOT NULL,
                 timestamp FLOAT     NOT NULL,
                 message CHAR(500)    NOT NULL);''')
-    if not P_sender:
-        P_sender = PeerSender(sc.start_chat(target_email))
-    P_sender.send(message)
-    if sc.last_response == Response.Status.Positive:
+    # if not P_sender:
+    P_sender = PeerSender(sc.start_chat(target_email))
+    response_in = P_sender.send(message)
+    if response_in.status == Response.Status.Positive:
         # base64_string = base64.b64encode(message.content).decode("utf8")
         cursor.execute("INSERT INTO message (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
                        (client_account, target_email, time.time(), base64_string))
         message_db_con.commit()
+    P_sender.close()
     return
 
 
@@ -271,3 +277,4 @@ if __name__ == '__main__':
     sc.bind_friend_listener(friend)
     P_listener = PeerListener(recv_message)
     P_listener.run()
+    sc.bind_peer_listener(P - listener)
