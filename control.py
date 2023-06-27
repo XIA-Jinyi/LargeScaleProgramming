@@ -86,7 +86,7 @@ def register(email,username,pwd):#如果成功返回1，错误返回0，后面�
         #连接错误
         sc.close()
         return 0,sc.last_response.status
-def update_friend_status(user):
+def callbak_update_friend_status(user):
     global friend_ls
     friend_ls_lock.acquire()
     for i in range(len(friend_ls)):
@@ -97,19 +97,19 @@ def update_friend_status(user):
     friend_ls_lock.release()
     return
 
-def new_friend_request(user):
+def callbak_new_friend_request(user):
     #新好友请求，要和前端商量怎么提示
     global friend_new_ls
     friend_new_ls.append(user)
     return
-def add_new_friend(user):
+def callbak_add_new_friend(user):
     #确认新好友请求
     global friend_ls
     friend_ls_lock.acquire()
     friend_ls.append(user)
     friend_ls_lock.release()
     return
-def delete_friend(user):
+def callbak_delete_friend(user):
     global friend_ls
     friend_ls_lock.acquire()
     for i in range(len(friend_ls)):
@@ -118,7 +118,7 @@ def delete_friend(user):
             break
     friend_ls_lock.release()
     return
-def init_friend_list(acquired_friend_ls):
+def callbak_init_friend_list(acquired_friend_ls):
     global friend_ls
     friend_ls_lock.acquire()
     friend_ls=acquired_friend_ls
@@ -191,10 +191,10 @@ if __name__ == '__main__':
     response=sc.connect()
     if response.status!=Response.Status.Positive:
         exit(0)
-    friend=FriendListener(update_friend_status,
-                          new_friend_request,
-                          add_new_friend,
-                          delete_friend,init_friend_list)
+    friend=FriendListener(callbak_update_friend_status,
+                          callbak_new_friend_request,
+                          callbak_add_new_friend,
+                          callbak_delete_friend,callbak_init_friend_list)
     friend.run()
     sc.bind_friend_listener(friend)
     P_listener = PeerListener(recv_message)
