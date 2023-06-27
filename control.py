@@ -14,7 +14,7 @@ client_account = ''
 ver_code = ''
 P_sender = None
 message = Message()
-front_entity = BuptChat('', '')
+front_entity = None
 
 
 # new_friend_cnt=0
