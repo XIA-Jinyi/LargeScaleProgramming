@@ -266,6 +266,12 @@ def confirm_add_friend(target_email):  # 如果成功就返回1，不然就返�
     if sc.last_response != Response.Status.Positive:
         return 0, sc.last_response
     else:
+        for i in raneg(len(friend_new_ls)):
+            if friend_new_ls[i].email==target_email:
+                del friend_new_ls[i]
+                break
+        update_front_friend_new_ls()
+        #update_front_friend_ls()
         return 1, 0
 
 
