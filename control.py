@@ -1,5 +1,5 @@
 from ClientService.Communication import ServerConnection,FriendListener,PeerListener,PeerSender
-from ClientService.Model import Response,User
+from ClientService.Model import Response,User,Message
 from threading import Lock
 import sqlite3
 import base64
@@ -12,7 +12,13 @@ friend_new_ls=[]
 client_account=''
 ver_code=''
 P_sender=None
+message=Message()
 #new_friend_cnt=0
+def build_message(str):#前后端信息格式转换
+    global message
+    message.attributes={}
+    message.content=str.decode("utf8")
+    return
 def get_verify():
     #和前端沟通如何将验证码传入
     global ver_code
@@ -128,7 +134,7 @@ def recv_message(email,time_stamp,message):
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='message'")
     result = cursor.fetchone()
     #以base64编码存储数据
-    base64_string=base64.b64encode(message.content).decode("utf8")
+    base64_string=base64.b64encode((message.content).decode("utf8"))
     if not result:
         #没有表就建表
         cursor.execute('''CREATE TABLE message
@@ -151,7 +157,7 @@ def send_message(target_email,message):
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='message'")
     result = cursor.fetchone()
     #以base64编码存储数据
-    base64_string=base64.b64encode(message.content).decode("utf8")
+    base64_string=base64.b64encode((message.content).decode("utf8"))
     if not result:
         #没有表就建表
         conn.execute('''CREATE TABLE message
@@ -197,15 +203,7 @@ if __name__ == '__main__':
         while sc.last_response==Response.Status.Positive:
             #接收前端信息，选择服务类型
             service=get_service_type()
-        if sc.last_response==Response.Status.Timeout:
-            sc.refresh()
-        else:
-            sc.connect()
-    '''
-    print(func())
-    sc = ServerConnection()
-    response = sc.connect()
-    if response.status != Response.Status.Positive:
-        exit(0)
-    sc.update_vericode('123@abc.com')
-    sc.vericode_login('123@abc.com', '123123')'''
+            if sc.last_response==Response.Status.Timeout:
+                sc.refresh()
+            else:
+                sc.connect()
