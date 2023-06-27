@@ -1,5 +1,5 @@
-from ClientService.Communication import *
-from ClientService.Model import *
+from Communication import *
+from Model import *
 from threading import Lock
 import sqlite3
 import base64
