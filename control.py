@@ -125,7 +125,7 @@ def callbak_init_friend_list(acquired_friend_ls):
     friend_ls_lock.release()
     return
 
-def recv_message(email,time_stamp,message):
+def recv_message(email,time_stamp,message_recv):
     global message_db_con
     global client_account
     while not message_db_con:
@@ -134,7 +134,7 @@ def recv_message(email,time_stamp,message):
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='message'")
     result = cursor.fetchone()
     #以base64编码存储数据
-    base64_string=base64.b64encode((message.content).decode("utf8"))
+    base64_string=base64.b64encode((message_recv.content).decode("utf8"))
     if not result:
         #没有表就建表
         cursor.execute('''CREATE TABLE message
@@ -146,7 +146,8 @@ def recv_message(email,time_stamp,message):
                    (email, client_account, time_stamp, base64_string))
     message_db_con.commit()
     return
-def send_message(target_email,message):
+def send_message(target_email):
+    global message
     global message_db_con
     global client_account
     global P_sender
@@ -199,11 +200,3 @@ if __name__ == '__main__':
     sc.bind_friend_listener(friend)
     P_listener = PeerListener(recv_message)
     P_listener.run()
-    while True:
-        while sc.last_response==Response.Status.Positive:
-            #接收前端信息，选择服务类型
-            service=get_service_type()
-            if sc.last_response==Response.Status.Timeout:
-                sc.refresh()
-            else:
-                sc.connect()
