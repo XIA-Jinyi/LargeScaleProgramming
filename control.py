@@ -32,16 +32,11 @@ def build_message(message_str):  # 前后端信息格式转换
     return
 
 
-def get_verify():
+def get_verify(ver):
     # 和前端沟通如何将验证码传入
     global ver_code
-    ver_code = ''
-    pass
-
-
-def get_service_type():
-    # 和前端沟通怎样去确认服务类型
-    pass
+    ver_code = ver
+    return
 
 
 def send_verify_code():
