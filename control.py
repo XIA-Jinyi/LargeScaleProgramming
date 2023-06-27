@@ -1,5 +1,5 @@
-from ClientService.Communication import ServerConnection, FriendListener, PeerListener, PeerSender
-from ClientService.Model import Response, User, Message
+from ClientService.Communication import *
+from ClientService.Model import *
 from threading import Lock
 import sqlite3
 import base64
