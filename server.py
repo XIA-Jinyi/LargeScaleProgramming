@@ -6,6 +6,7 @@ import json
 import random
 import time
 import sqlite3
+import atexit
 
 
 db_conn = sqlite3.connect('server.db')
@@ -42,7 +43,7 @@ def handle_close(conn, addr) -> None:
 
 
 def handle_update_vericode(conn, addr, email) -> None:
-    vericode = ''.join(random.choice('1234567890QWERTYUIOPASDFGHJKLZXCVBNM0987654321') for _ in range(6))
+    vericode = ''.join(random.choice('23456789QWERTYUPASDFGHJKZXCVBNM98765432') for _ in range(6))
     with vericode_dict_lock:
         vericode_dict[email] = (vericode, time.time())
     print(f'Vericode Updated: {email} ({vericode})')
@@ -57,7 +58,8 @@ def handle_register(conn, addr, email: str, username: str, password: str, verico
         if vericode_dict[email][0] != vericode:
             respond(conn, False, close=True, message='Wrong vericode')
             return False
-        if vericode_dict[email][1] + Survival.Vericode > time.time():
+        current_time = time.time()
+        if vericode_dict[email][1] + Survival.Vericode < current_time:
             respond(conn, False, close=True, message='Vericode expired')
             return False
     if Database.find_user(db_conn, email) != None:
@@ -98,7 +100,7 @@ def handle_vericode_login(conn, addr, email: str, vericode: str) -> bool:
         if vericode_dict[email][0] != vericode:
             respond(conn, False, close=True, message='Wrong vericode')
             return False
-        if vericode_dict[email][1] + Survival.Vericode > time.time():
+        if vericode_dict[email][1] + Survival.Vericode < time.time():
             respond(conn, False, close=True, message='Vericode expired')
             return False
     with online_dict_lock:
@@ -219,13 +221,18 @@ def server_thread(conn: socket.socket, addr):
         else:
             respond(conn, False, message='Unknown operation')   
     conn.close()
+    with online_dict_lock:
+        if email is not None:
+            online_dict[email] = (False, time.time())
     print(f'{addr[0]}:{addr[1]} closed')
 
 
 if __name__ == '__main__':
+    atexit.register(db_conn.close)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((localhost, port))
     sock.listen(16)
+    atexit.register(sock.close)
     print(f'Server running at {localhost}:{port}')
     while True:
         conn, addr = sock.accept()
