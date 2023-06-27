@@ -272,4 +272,4 @@ if __name__ == '__main__':
     sc.bind_friend_listener(friend)
     P_listener = PeerListener(recv_message)
     P_listener.run()
-    sc.bind_peer_listener(P - listener)
+    sc.bind_peer_listener(P_listener)
