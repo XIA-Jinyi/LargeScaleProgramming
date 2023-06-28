@@ -39,7 +39,7 @@ def update_front_friend_new_ls():  # 提醒前端更新好友申请列表
 def update_communication(email, message_str):
     global front_entity
     if email == front_entity.chatObject:
-        front_entity.send_message(email,message_str)
+        front_entity.send_message(email, message_str)
     return
 
 
@@ -259,14 +259,15 @@ def get_message(from_email):
     while not message_db_con:
         message_db_con = sqlite3.connect('message.db')
     cursor = message_db_con.cursor()
-    cursor.execute(f"SELECT sender,recver,message FROM message_T WHERE (sender=\'{from_email}\' AND recver=\'{client_email}\')"
-                   f" OR (recver=\'{client_email}\' AND sender=\'{from_email}\') ORDER BY timestamp ascend")
+    cursor.execute(
+        f"SELECT sender,recver,message FROM message_T WHERE (sender=\'{from_email}\' AND recver=\'{client_email}\')"
+        f" OR (recver=\'{client_email}\' AND sender=\'{from_email}\') ORDER BY timestamp ascend")
     result = cursor.fetchall()
 
     """
     [('1_sender', '1_recver', '1_message'), ('2_sender', '2_recver', '2_message'),...]
     """
-    #<分割1_sender,1_recver,1_message,$分割1，2
+    # <分割1_sender,1_recver,1_message,$分割1，2
     result_str = '$'.join('<'.join(group) for group in result)
     return result_str
 
