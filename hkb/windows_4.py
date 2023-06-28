@@ -200,3 +200,6 @@ class Ui_MainWindow(object):
     def set_friend_name(self,friend_name):
         self.frind_name.setText(friend_name)
 
+    def set_friend_name(self,friend_name):
+        self.frind_name.setText(friend_name)
+
