@@ -36,7 +36,7 @@ def update_front_friend_new_ls():  # 提醒前端更新好友申请列表
     return
 
 
-def update_communication(email):
+def update_communication(email, message_str):
     global front_entity
     front_entity.paint_message()
     return
@@ -45,7 +45,7 @@ def update_communication(email):
 def build_message(message_str):  # 前后端信息格式转换
     global message
     message.attributes = {}
-    message.content = message_str.decode("utf8")
+    message.content = message_str.encode("utf8")
     return
 
 
@@ -73,7 +73,7 @@ def login(email, pwd):  # 如果成功返回1，错误返回0，后面跟返回�
     # 清空list
     friend_ls = []
     friend_new_ls = []
-    if sc.last_response==Response.Status.NegativeClose or sc.last_response==Response.Status.PositiveClose:
+    if sc.last_response == Response.Status.NegativeClose or sc.last_response == Response.Status.PositiveClose:
         sc.connect()
     if pwd == '':
         # 验证码登录
@@ -108,7 +108,7 @@ def login(email, pwd):  # 如果成功返回1，错误返回0，后面跟返回�
 def register(email, username, pwd):  # 如果成功返回1，错误返回0，后面跟返回码
     global sc
     global ver_code
-    if sc.last_response==Response.Status.NegativeClose or sc.last_response==Response.Status.PositiveClose:
+    if sc.last_response == Response.Status.NegativeClose or sc.last_response == Response.Status.PositiveClose:
         sc.connect()
     # sc.update_vericode(email)
     # send_verify_code()
@@ -207,15 +207,15 @@ def recv_message(email, time_stamp, message_recv):
     base64_string = base64.b64encode(message_recv.content.decode("utf8"))
     if not result:
         # 没有表就建表
-        cursor.execute('''CREATE TABLE message
+        cursor.execute('''CREATE TABLE message_T
                 (sender CHAR(50)    NOT NULL,
                 recver CHAR(50)     NOT NULL,
                 timestamp FLOAT     NOT NULL,
                 message CHAR(500)    NOT NULL);''')
-    cursor.execute("INSERT INTO message (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
+    cursor.execute("INSERT INTO message_T (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
                    (email, client_account, time_stamp, base64_string))
     message_db_con.commit()
-    update_communication(email)
+    update_communication(email, message_recv.content.decode("utf8"))
     return
 
 
@@ -234,7 +234,7 @@ def send_message(target_email):
     base64_string = base64.b64encode(message.content.decode("utf8"))
     if not result:
         # 没有表就建表
-        cursor.execute('''CREATE TABLE message
+        cursor.execute('''CREATE TABLE message_T
                 (sender CHAR(50)    NOT NULL,
                 recver CHAR(50)     NOT NULL,
                 timestamp FLOAT     NOT NULL,
@@ -244,11 +244,23 @@ def send_message(target_email):
     response_in = P_sender.send(message)
     if response_in.status == Response.Status.Positive:
         # base64_string = base64.b64encode(message.content).decode("utf8")
-        cursor.execute("INSERT INTO message (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
+        cursor.execute("INSERT INTO message_T (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
                        (client_account, target_email, time.time(), base64_string))
         message_db_con.commit()
     P_sender.close()
     return
+
+
+def get_message(from_email, to_email):
+    # 返回消息的base64编码，以$间隔
+    global message_db_con
+    while not message_db_con:
+        message_db_con = sqlite3.connect('message.db')
+    cursor = message_db_con.cursor()
+    cursor.execute(f"SELECT message FROM message_T WHERE sender=\'{from_email}\' AND recver=\'{to_email}\'")
+    result = cursor.fetchone()
+    result_str = '$'.join(result)
+    return result_str
 
 
 def request_add_friend(target_email):  # 如果成功就返回1，不然就返回0和错误码(未知错误），返回-1表示用户已存在
@@ -272,11 +284,11 @@ def confirm_add_friend(target_email):  # 如果成功就返回1，不然就返�
         return 0, sc.last_response
     else:
         for i in raneg(len(friend_new_ls)):
-            if friend_new_ls[i].email==target_email:
+            if friend_new_ls[i].email == target_email:
                 del friend_new_ls[i]
                 break
         update_front_friend_new_ls()
-        #update_front_friend_ls()
+        # update_front_friend_ls()
         return 1, 0
 
 
