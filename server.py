@@ -5,17 +5,18 @@ import threading
 import json
 import random
 import time
-import sqlite3
 import atexit
+import os
 
 
-db_conn = sqlite3.connect('server.db')
+db_path = os.path.abspath('server.db')
 localhost = '0.0.0.0'
 port = Const.server_port
 vericode_dict = {'email@demo.domain': ('123456', time.time())}
 online_dict = {'email@demo.domain': (False, time.time())}
-friend_listener_dict = {'email@demo.domain': ('ip', 22222)}
-peer_listener_dict = {'email@demo.domain': ('ip', 22222)}
+friend_listener_dict = {'email@demo.domain': (Const.server_ip, Const.server_port)}
+peer_listener_dict = {'email@demo.domain': (Const.server_ip, Const.server_port)}
+username_dict = {'email@demo.domain': 'demoname'}
 vericode_dict_lock = threading.Lock()
 online_dict_lock = threading.Lock()
 friend_listener_dict_lock = threading.Lock()
@@ -34,6 +35,10 @@ def respond(conn, positive: bool = True, close: bool = False, **kwargs):
     conn.send(json.dumps({'status': status, 'content': kwargs}).encode())
 
 
+def operate(conn, op: str, **kwargs):
+    conn.send(json.dumps({'op': op, 'content': kwargs}).encode())
+
+
 def handle_hello(conn, addr) -> None:
     respond(conn)
 
@@ -46,7 +51,7 @@ def handle_update_vericode(conn, addr, email) -> None:
     vericode = ''.join(random.choice('23456789QWERTYUPASDFGHJKZXCVBNM98765432') for _ in range(6))
     with vericode_dict_lock:
         vericode_dict[email] = (vericode, time.time())
-    print(f'Vericode Updated: {email} ({vericode})')
+    print(f'Vericode Updated: {email} (\033[33m{vericode}\033[0m)')
     respond(conn)
 
 
@@ -62,25 +67,25 @@ def handle_register(conn, addr, email: str, username: str, password: str, verico
         if vericode_dict[email][1] + Survival.Vericode < current_time:
             respond(conn, False, close=True, message='Vericode expired')
             return False
-    if Database.find_user(db_conn, email) != None:
+    if Database.find_user(db_path, email) != None:
         respond(conn, False, close=True, message='Email already registered')
         return False
-    Database.register(db_conn, email, username, password)
+    Database.register(db_path, email, username, password)
     respond(conn)
     return True
 
 
 def handle_password_login(conn, addr, email: str, password: str) -> bool:
-    pwdhash = Database.get_pwdhash(db_conn, email)
+    pwdhash = Database.get_pwdhash(db_path, email)
     if pwdhash == None:
         respond(conn, False, close=True, message='Email not registered')
         return False
     if pwdhash != password:
         respond(conn, False, close=True, message='Wrong password')
         return False
-    username = Database.find_user(db_conn, email)
+    username = Database.find_user(db_path, email)
     with online_dict_lock:
-        if online_dict.get(email, (False, None)):
+        if online_dict.get(email, (False, None))[0]:
             respond(conn, False, close=True, message='Already online')
             return False
         online_dict[email] = (True, time.time())
@@ -89,7 +94,7 @@ def handle_password_login(conn, addr, email: str, password: str) -> bool:
 
 
 def handle_vericode_login(conn, addr, email: str, vericode: str) -> bool:
-    username = Database.find_user(db_conn, email)
+    username = Database.find_user(db_path, email)
     if username == None:
         respond(conn, False, close=True, message='Email not registered')
         return False
@@ -104,7 +109,7 @@ def handle_vericode_login(conn, addr, email: str, vericode: str) -> bool:
             respond(conn, False, close=True, message='Vericode expired')
             return False
     with online_dict_lock:
-        if online_dict.get(email, (False, None)):
+        if online_dict.get(email, (False, None))[0]:
             respond(conn, False, close=True, message='Already online')
             return False
         online_dict[email] = (True, time.time())
@@ -115,6 +120,45 @@ def handle_vericode_login(conn, addr, email: str, vericode: str) -> bool:
 def handle_bind_friend_listener(conn, addr, email, friend_listener_port: int):
     with friend_listener_dict_lock:
         friend_listener_dict[email] = (addr[0], friend_listener_port)
+    # Broadcast online status to friends
+    friend_list = Database.get_friend_list(db_path, email)
+    friends: list[Model.User] = []
+    with online_dict_lock:
+        for friend_tuple in friend_list:
+            friend = Model.User()
+            friend.email = friend_tuple[0]
+            friend.username = friend_tuple[1]
+            if online_dict.get(friend_tuple[0], (False, None))[0]:
+                friend.status = Model.User.Status.Online
+            else:
+                friend.status = Model.User.Status.Offline
+            friends.append(friend)
+    for friend in friends:
+        if friend.status == Model.User.Status.Online:
+            with friend_listener_dict_lock:
+                friend_addr = friend_listener_dict.get(friend.email, None)
+            if friend_addr is None:
+                continue
+            friend_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            friend_conn.connect(friend_addr)
+            operate(friend_conn, 'status', email=email, status=Model.User.Status.Online.value)
+            friend_conn.close()
+    # Feedback
+    new_friend_requests = Database.get_friend_request(db_path, email)
+    self_listener_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    self_listener_conn.connect((addr[0], friend_listener_port))
+    operate(self_listener_conn,
+            'init',
+            friends=[{'email': friend.email,
+                      'username': friend.username,
+                      'status': friend.status.value}
+                      for friend in friends])
+    for new_tuple in new_friend_requests:
+        operate(self_listener_conn,
+                'new',
+                email=new_tuple[0],
+                username=new_tuple[1])
+    self_listener_conn.close()
     respond(conn)
 
 
@@ -125,7 +169,7 @@ def handle_bind_peer_listener(conn, addr, email, peer_listener_port: int):
 
 
 def handle_find_user(conn, addr, email: str) -> bool:
-    username = Database.find_user(db_conn, email)
+    username = Database.find_user(db_path, email)
     if username == None:
         respond(conn, False, message='Email not registered')
         return False
@@ -134,25 +178,92 @@ def handle_find_user(conn, addr, email: str) -> bool:
 
 
 def handle_add_friend(conn, addr, user_email, friend_email: str):
-    if Database.judge_friend(db_conn, user_email, friend_email):
+    if Database.judge_friend(db_path, user_email, friend_email):
         respond(conn, False, message='Already friends')
         return False
-    Database.raise_friend_request(db_conn, user_email, friend_email)
+    # Check if friend online
+    online = False
+    with online_dict_lock:
+        online = online_dict.get(friend_email, (False, None))[0]
+    if online:
+        # Send friend request
+        with friend_listener_dict_lock:
+            friend_addr = friend_listener_dict.get(friend_email, None)
+        friend_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        friend_conn.connect(friend_addr)
+        operate(friend_conn,
+                'new',
+                email=user_email,
+                username=Database.find_user(db_path, user_email))
+        friend_conn.close()
+    else:
+        Database.raise_friend_request(db_path, user_email, friend_email)
     respond(conn)
     return True
 
 
 def handle_confirm_friend(conn, addr, user_email, friend_email: str):
-    if Database.judge_friend(db_conn, user_email, friend_email):
+    if Database.judge_friend(db_path, user_email, friend_email):
         respond(conn, False, message='Already friends')
         return False
-    Database.add_friend(db_conn, user_email, friend_email)
+    # Check if friend online
+    online = False
+    with online_dict_lock:
+        online = online_dict.get(friend_email, (False, None))[0]
+    if online:
+        # Send friend request
+        with friend_listener_dict_lock:
+            friend_addr = friend_listener_dict.get(friend_email, None)
+        friend_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        friend_conn.connect(friend_addr)
+        operate(friend_conn,
+                'add',
+                email=user_email,
+                username=Database.find_user(db_path, user_email),
+                status=Model.User.Status.Online.value)
+        friend_conn.close()
+    self_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    with friend_listener_dict_lock:
+        self_listenner_addr = friend_listener_dict[user_email]
+    self_conn.connect(self_listenner_addr)
+    operate(self_conn,
+            'add',
+            email=friend_email,
+            username=Database.find_user(db_path, friend_email),
+            status=Model.User.Status.Online.value if online else Model.User.Status.Offline.value)
+    self_conn.close()
+    Database.add_friend(db_path, user_email, friend_email)
     respond(conn)
     return True
 
 
 def handle_delete_friend(conn, addr, user_email, friend_email: str):
-    Database.del_friend(db_conn, user_email, friend_email)
+    # Check if friend online
+    online = False
+    with online_dict_lock:
+        online = online_dict.get(friend_email, (False, None))[0]
+    if online:
+        if not Database.judge_friend(db_path, user_email, friend_email):
+            respond(conn, True, message='Not friends')
+            return False
+        # Send delete request
+        with friend_listener_dict_lock:
+            friend_addr = friend_listener_dict.get(friend_email, None)
+        friend_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        friend_conn.connect(friend_addr)
+        operate(friend_conn,
+                'delete',
+                email=user_email)
+        friend_conn.close()
+    self_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    with friend_listener_dict_lock:
+        self_listenner_addr = friend_listener_dict[user_email]
+    self_conn.connect(self_listenner_addr)
+    operate(self_conn,
+            'delete',
+            email=user_email)
+    self_conn.close()
+    Database.del_friend(db_path, user_email, friend_email)
     respond(conn)
 
 
@@ -166,7 +277,7 @@ def handle_start_chat(conn, addr, user_email, friend_email: str):
             respond(conn, False, message='Friend not listening')
             return False
         peer_listener_addr = peer_listener_dict[friend_email]
-    respond(conn, ip=peer_listener_addr[0], port=peer_listener_addr[1])
+    respond(conn, ip=peer_listener_addr[0], port=peer_listener_addr[1], email=friend_email)
 
 
 def server_thread(conn: socket.socket, addr):
@@ -224,11 +335,12 @@ def server_thread(conn: socket.socket, addr):
     with online_dict_lock:
         if email is not None:
             online_dict[email] = (False, time.time())
+    with friend_listener_dict_lock:
+        friend_listener_dict[email] = None
     print(f'{addr[0]}:{addr[1]} closed')
 
 
 if __name__ == '__main__':
-    atexit.register(db_conn.close)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((localhost, port))
     sock.listen(16)
