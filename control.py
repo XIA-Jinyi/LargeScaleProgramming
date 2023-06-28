@@ -73,6 +73,8 @@ def login(email, pwd):  # 如果成功返回1，错误返回0，后面跟返回�
     # 清空list
     friend_ls = []
     friend_new_ls = []
+    if sc.last_response==Response.Status.NegativeClose or sc.last_response==Response.Status.PositiveClose:
+        sc.connect()
     if pwd == '':
         # 验证码登录
         if sc.last_response.status != Response.Status.Positive:
@@ -106,6 +108,8 @@ def login(email, pwd):  # 如果成功返回1，错误返回0，后面跟返回�
 def register(email, username, pwd):  # 如果成功返回1，错误返回0，后面跟返回码
     global sc
     global ver_code
+    if sc.last_response==Response.Status.NegativeClose or sc.last_response==Response.Status.PositiveClose:
+        sc.connect()
     # sc.update_vericode(email)
     # send_verify_code()
     # 发验证码邮件
