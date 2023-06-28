@@ -183,8 +183,8 @@ class ServerConnection:
             return retval
         self.__is_sock_closed = False
         retval.status = Response.Status.Positive
-        return retval
-
+        self.last_response = retval
+        return self.last_response
 
     def __send(self, op: str = 'hello', **kwargs) -> Response:
         retval = Response()
@@ -213,14 +213,14 @@ class ServerConnection:
             retval.content = {'message': 'Parsing message failed.'}
         return retval
 
-
     def refresh(self) -> Response:
         """刷新连接
 
         Returns:
             Response: 响应
         """
-        return self.__send()
+        self.last_response = self.__send()
+        return self.last_response
 
     def update_vericode(self, email: str) -> Response:
         """更新验证码并发送邮件
@@ -231,7 +231,8 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        return self.__send('update_vericode', email=email)
+        self.last_response = self.__send('update_vericode', email=email)
+        return self.last_response
 
     def register(self, email: str, username: str, password: str, vericode: str) -> Response:
         """注册
@@ -245,7 +246,8 @@ class ServerConnection:
             Response: 响应
         """
         pwdhash = hashlib.sha256(password.encode('utf-8')).hexdigest()
-        return self.__send('register', email=email, username=username, pwdhash=pwdhash, vericode=vericode)
+        self.last_response = self.__send('register', email=email, username=username, pwdhash=pwdhash, vericode=vericode)
+        return self.last_response
 
     def password_login(self, email: str, password: str) -> Response:
         """密码登录
@@ -261,7 +263,8 @@ class ServerConnection:
         response = self.__send('password_login', email=email, pwdhash=hashlib.sha256(password.encode('utf-8')).hexdigest())
         if response.status == Response.Status.Positive:
             self.username = response.content['name']
-        return response
+        self.last_response = response
+        return self.last_response
 
     def vericode_login(self, email: str, vericode: str) -> Response:
         """验证码登录
@@ -277,7 +280,8 @@ class ServerConnection:
         response = self.__send('vericode_login', email=email, vericode=vericode)
         if response.status == Response.Status.Positive:
             self.username = response.content['name']
-        return response
+        self.last_response = response
+        return self.last_response
 
     def bind_friend_listener(self, friend_listener: FriendListener) -> Response:
         """绑定好友监听器
@@ -288,7 +292,8 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        return self.__send('bind_friend_listener', port=friend_listener.port)
+        self.last_response = self.__send('bind_friend_listener', port=friend_listener.port)
+        return self.last_response
 
     def bind_peer_listener(self, peer_listener: PeerListener) -> Response:
         """绑定伙伴监听器
@@ -299,7 +304,8 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        return self.__send('bind_peer_listener', port=peer_listener.port)
+        self.last_response = self.__send('bind_peer_listener', port=peer_listener.port)
+        return self.last_response
 
     def find_user(self, user_email: str) -> Response:
         """查找用户
@@ -310,7 +316,8 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        return self.__send('find_user', email=user_email)
+        self.last_response = self.__send('find_user', email=user_email)
+        return self.last_response
 
     def add_friend(self, friend_email: str) -> Response:
         """添加好友
@@ -321,7 +328,8 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        return self.__send('add_friend', email=friend_email)
+        self.last_response = self.__send('add_friend', email=friend_email)
+        return self.last_response
 
     def confirm_friend(self, friend_email: str) -> Response:
         """确认添加好友
@@ -332,7 +340,8 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        return self.__send('confirm_friend', email=friend_email)
+        self.last_response = self.__send('confirm_friend', email=friend_email)
+        return self.last_response
 
     def delete_friend(self, friend_email: str) -> Response:
         """删除好友
@@ -343,7 +352,8 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        return self.__send('delete_friend', email=friend_email)
+        self.last_response = self.__send('delete_friend', email=friend_email)
+        return self.last_response
 
     def start_chat(self, friend_email: str) -> Response:
         """发起对话
@@ -364,7 +374,8 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        return self.__send('close')
+        self.last_response = self.__send('close')
+        return self.last_response
 
 
 class PeerSender:
@@ -425,7 +436,7 @@ if __name__ == '__main__':
     my_email, friend_email = 'jinyi.xia@bupt.edu.cn', '20230628101050@bupt.edu.cn'
     if hint == '1':
         my_email, friend_email = friend_email, my_email
-        time.sleep(0.5)
+        # time.sleep(0.5)
 
     sc = ServerConnection()
     r = sc.connect()
