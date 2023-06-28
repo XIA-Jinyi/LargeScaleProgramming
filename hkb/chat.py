@@ -11,6 +11,7 @@ class BuptChat(QMainWindow, Ui_MainWindow):
         self.username = username
         self.email = email
         self.add_friend_status = 1
+        self.friend_list = ''
         self.message = ""
         self.sender_name = ""
         self.Send.clicked.connect(self.transfer)
@@ -64,34 +65,19 @@ class BuptChat(QMainWindow, Ui_MainWindow):
         self.update_textBrowser()
 
     def update_textBrowser(self):
-        if self.message['type'] == 'text':
-            content = f"<b>{self.sender_name}:</b>\n{self.message['content']}"
-            self.textBrowser.append(content)
-        elif self.message['type'] == 'image':
-            image_path = self.message['path']
-            content = f"<b>{self.sender_name}:</b>"
-            self.textBrowser.append(content)
-            self.display_image(image_path)
+        content = f"<b>{self.sender_name}:</b><br />{self.message}"
+        self.textBrowser.append(content)
 
-    def display_image(self, image_path):
-        # 将图片以HTML格式插入textBrowser
-        self.textBrowser.append(f"<b>{self.sender_name}:</b>")
-        self.textBrowser.append(f"<img src='{image_path}' width='200' height='200'>")
-
-
-
+    def get_friend_request(self):
+        self.search_edit.toPlainText()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = BuptChat('kb', '1429099037@qq.com')
 
     # 创建包含图片信息的字典
-    image_message = {
-        'type': 'image',
-        'path': 'buptchat.png'
-    }
 
-    ex.receive_message(sender_name='xjy', message=image_message)
+    ex.receive_message(sender_name='xjy', message="kb")
     sys.exit(app.exec_())
 
 # if (self.message != ''):

@@ -197,3 +197,6 @@ class Ui_MainWindow(object):
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:\'Microsoft YaHei UI\';\"><br /></p></body></html>"))
         self.remove.setText(_translate("MainWindow", "-"))
         self.Send.setText(_translate("MainWindow", "Send"))
+    def set_friend_name(self,friend_name):
+        self.frind_name.setText(friend_name)
+
