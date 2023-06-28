@@ -134,10 +134,10 @@ class PeerListener:
             except:
                 hold_conn = False
                 break
-            # message = Message()
-            # message.attributes = msg[0]['attributes']
-            # message.content = msg[0]['content']
-            self.callback(msg[1], time.time(), msg[0])
+            message = Message()
+            message.attributes = msg[0]['attributes']
+            message.content = msg[0]['content'].encode()
+            self.callback(msg[1], time.time(), message)
         conn.close()
 
     def __listen(self):
@@ -394,7 +394,8 @@ class PeerSender:
         Returns:
             Response: 响应
         """
-        msg_str = json.dumps([message, self.email])
+        message.content = message.content.decode()
+        msg_str = json.dumps([message.__dict__, self.email])
         self.__sock.send(msg_str.encode())
 
     def close(self) -> Response:
@@ -418,7 +419,7 @@ if __name__ == '__main__':
     def init_call(l):
         print(f'Init friend list {[u.__dict__ for u in l]}')
     def show_call(email, t, msg):
-        print(f'Receive message from {email}: {msg}')
+        print(f'Receive message from {email}: {msg.__dict__}')
     
     hint = input('Hint:\n')
     my_email, friend_email = 'jinyi.xia@bupt.edu.cn', '20230628101050@bupt.edu.cn'
@@ -474,8 +475,8 @@ if __name__ == '__main__':
     if r.status == Response.Status.Positive:
         sender = PeerSender(r)
         msg = Message()
-        msg.content = f'msg{hint}'
-        sender.send(f'msg{hint}')
+        msg.content = f'msg{hint}'.encode()
+        sender.send(msg)
 
     time.sleep(2)
     r = sc.close()
