@@ -38,7 +38,8 @@ def update_front_friend_new_ls():  # 提醒前端更新好友申请列表
 
 def update_communication(email, message_str):
     global front_entity
-    front_entity.paint_message()
+    if email == front_entity.chatObject:
+        front_entity.send_message(email,message_str)
     return
 
 
