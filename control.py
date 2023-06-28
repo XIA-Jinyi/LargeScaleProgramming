@@ -260,14 +260,14 @@ def get_message(from_email):
         message_db_con = sqlite3.connect('message.db')
     cursor = message_db_con.cursor()
     cursor.execute(
-        f"SELECT sender,recver,message FROM message_T WHERE (sender=\'{from_email}\' AND recver=\'{client_email}\')"
+        f"SELECT sender,message FROM message_T WHERE (sender=\'{from_email}\' AND recver=\'{client_email}\')"
         f" OR (recver=\'{client_email}\' AND sender=\'{from_email}\') ORDER BY timestamp ascend")
     result = cursor.fetchall()
 
     """
-    [('1_sender', '1_recver', '1_message'), ('2_sender', '2_recver', '2_message'),...]
+    [('1_sender', '1_message'), ('2_sender', '2_message'),...]
     """
-    # <分割1_sender,1_recver,1_message,$分割1，2
+    # <分割1_sender,1_message,$分割1，2
     result_str = '$'.join('<'.join(group) for group in result)
     return result_str
 
