@@ -15,6 +15,31 @@ ver_code = ''
 P_sender = None
 message = Message()
 front_entity = None
+friend = None
+P_listener = None
+
+
+def init():
+    global sc
+    global friend
+    global P_listener
+    sc.connect()
+    friend = FriendListener(callbak_update_friend_status,
+                            callbak_new_friend_request,
+                            callbak_add_new_friend,
+                            callbak_delete_friend, callbak_init_friend_list)
+    friend.run()
+
+
+def init_after_login(real_one):
+    global friend
+    global P_listener
+    global sc
+    update_front_entity(real_one)
+    sc.bind_friend_listener(friend)
+    P_listener = PeerListener(recv_message)
+    P_listener.run()
+    sc.bind_peer_listener(P_listener)
 
 
 # new_friend_cnt=0
@@ -57,10 +82,14 @@ def get_verify(ver):
     return
 
 
-def send_verify_code():
+def send_verify_code(email):
     global sc
+    global client_account
     # 反复发验证码
-    sc.update_vericode()
+    # sc = ServerConnection()
+    # sc.connect()
+    client_account = email
+    sc.update_vericode(client_account)
     # 点输入验证码
     return
 
@@ -71,62 +100,64 @@ def login(email, pwd):  # 如果成功返回1，错误返回0，后面跟返回�
     global ver_code
     global friend_ls
     global friend_new_ls
+    global P_listener
+    global friend
+
+    client_account = email
     # 清空list
     friend_ls = []
     friend_new_ls = []
-    if sc.last_response == Response.Status.NegativeClose or sc.last_response == Response.Status.PositiveClose:
-        sc.connect()
+    sc = ServerConnection()
+    sc.connect()
     if pwd == '':
         # 验证码登录
-        if sc.last_response.status != Response.Status.Positive:
-            # 连接错误,返回0和错误码
-            return 0, sc.last_response.status
+        # 验证码发送正确
+        # ver_code=get_verify()
+        response_lo = sc.vericode_login(email, ver_code)
+        if response_lo.status != Response.Status.Positive:
+            # 连接错误或者验证码错误
+            # if response==Response.Status.NegativeClose:
+            sc.close()
+            sc = ServerConnection()
+            sc.connect()
+            return 0, response_lo.status
         else:
-            # 验证码发送正确
-            # ver_code=get_verify()
-            response_lo = sc.vericode_login(email, ver_code)
-            if response_lo.status != Response.Status.Positive:
-                # 连接错误或者验证码错误
-                # if response==Response.Status.NegativeClose:
-                sc.close()
-                return 0, response_lo.status
-            else:
-                # 登陆成功
-                client_account = email
-                return 1, 0
+            # 登陆成功
+            return 1, 0
     else:
         # 密码登录
         response_lo = sc.password_login(email, pwd)
         if response_lo.status != Response.Status.Positive:
             # 连接错误或者密码错误
             sc.close()
+            sc = ServerConnection()
+            sc.connect()
             return 0, response_lo.status
         else:
-            client_account = email
             return 1, 0
 
 
 def register(email, username, pwd):  # 如果成功返回1，错误返回0，后面跟返回码
     global sc
     global ver_code
-    if sc.last_response == Response.Status.NegativeClose or sc.last_response == Response.Status.PositiveClose:
-        sc.connect()
-    # sc.update_vericode(email)
-    # send_verify_code()
+    # if sc.last_response == Response.Status.NegativeClose or sc.last_response == Response.Status.PositiveClose:
+    sc = ServerConnection()
+    sc.connect()
     # 发验证码邮件
-    if sc.last_response.status != Response.Status.Positive:
-        # ver_code=get_verify()   #发送成功，让用户输入验证码
-        sc.register(email, username, pwd, ver_code)
-        if sc.last_response.status != Response.Status.Positive:
-            # 验证成功，注册成功
-            return 1, 0
-        else:
-            # 连接错误或验证失败
-            sc.close()
-            return 0, sc.last_response.status
-    else:
-        # 连接错误
+    response=sc.register(email, username, pwd, ver_code)
+    #print(sc.last_response.status)
+    if response.status == Response.Status.Positive:
+        # 验证成功，注册成功
         sc.close()
+        sc = ServerConnection()
+        sc.connect()
+        sc.password_login(email, pwd)
+        return 1, 0
+    else:
+        # 连接错误或验证失败
+        sc.close()
+        sc = ServerConnection()
+        sc.connect()
         return 0, sc.last_response.status
 
 
@@ -292,7 +323,7 @@ def confirm_add_friend(target_email):  # 如果成功就返回1，不然就返�
     if sc.last_response != Response.Status.Positive:
         return 0, sc.last_response
     else:
-        for i in raneg(len(friend_new_ls)):
+        for i in range(len(friend_new_ls)):
             if friend_new_ls[i].email == target_email:
                 del friend_new_ls[i]
                 break
