@@ -1,7 +1,7 @@
 from tkinter import *
 from tkinter.ttk import *
 from typing import Dict
-from buptchat import *
+from hkb import *
 
 class WinGUI(Tk):
     widget_dic: Dict[str, Widget] = {}
