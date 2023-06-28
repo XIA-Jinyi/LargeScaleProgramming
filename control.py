@@ -251,15 +251,22 @@ def send_message(target_email):
     return
 
 
-def get_message(from_email, to_email):
+def get_message(from_email):
     # 返回消息的base64编码，以$间隔
+    global client_account
     global message_db_con
     while not message_db_con:
         message_db_con = sqlite3.connect('message.db')
     cursor = message_db_con.cursor()
-    cursor.execute(f"SELECT message FROM message_T WHERE sender=\'{from_email}\' AND recver=\'{to_email}\'")
-    result = cursor.fetchone()
-    result_str = '$'.join(result)
+    cursor.execute(f"SELECT sender,recver,message FROM message_T WHERE (sender=\'{from_email}\' AND recver=\'{client_email}\')"
+                   f" OR (recver=\'{client_email}\' AND sender=\'{from_email}\') ORDER BY timestamp ascend")
+    result = cursor.fetchall()
+
+    """
+    [('1_sender', '1_recver', '1_message'), ('2_sender', '2_recver', '2_message'),...]
+    """
+    #<分割1_sender,1_recver,1_message,$分割1，2
+    result_str = '$'.join('<'.join(group) for group in result)
     return result_str
 
 
