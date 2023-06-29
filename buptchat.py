@@ -10,6 +10,7 @@ import control
 import functools
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+'''
 control.friend_ls = [User() for _ in range(2)]
 for i in range(2):
     control.friend_ls[i].email = '1257820962@qq.com'
@@ -42,6 +43,8 @@ control.friend_new_ls[2].username = 'hgl'
 control.friend_new_ls[0].status = 0
 control.friend_new_ls[1].status = 1
 control.friend_new_ls[2].status = 1
+
+'''
 
 
 class BuptChat(QMainWindow, Ui_MainWindow):
@@ -108,7 +111,7 @@ class BuptChat(QMainWindow, Ui_MainWindow):
 
         for i in range(len(control.friend_new_ls)):
             acp = QPushButton(f'接受√', self.rqwindow)
-            acp.clicked.connect(lambda _, i=i: self.confirm_add_friend(control.friend_new_ls[i].email))
+            acp.clicked.connect(lambda _, i=i: confirm_add_friend(control.friend_new_ls[i].email))
             self.accept_lst.append(acp)
             ref = QPushButton('拒绝×', self.rqwindow)
             ref.clicked.connect(lambda _, i=i: self.del_add_friend(control.friend_new_ls[i].email))
@@ -187,6 +190,11 @@ class BuptChat(QMainWindow, Ui_MainWindow):
             event.ignore()
 
     def showMessageBox(self):
+        #print('1')
+        text = self.search_edit.toPlainText()
+        #print(text)
+        self.add_friend_status = request_add_friend(text)
+        #print(self.add_friend_status)
         if self.add_friend_status == 1:
             QMessageBox.information(self, 'Message', "好友申请发送成功")
         else:

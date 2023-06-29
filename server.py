@@ -118,6 +118,7 @@ def handle_vericode_login(conn, addr, email: str, vericode: str) -> bool:
 
 
 def handle_bind_friend_listener(conn, addr, email, friend_listener_port: int):
+    print(f'{addr} {email} bind friend listener')
     with friend_listener_dict_lock:
         friend_listener_dict[email] = (addr[0], friend_listener_port)
     # Broadcast online status to friends
@@ -147,6 +148,7 @@ def handle_bind_friend_listener(conn, addr, email, friend_listener_port: int):
     new_friend_requests = Database.get_friend_request(db_path, email)
     self_listener_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     self_listener_conn.connect((addr[0], friend_listener_port))
+    print(f'{addr} {email} bind friend listener: call init')
     operate(self_listener_conn,
             'init',
             friends=[{'email': friend.email,
@@ -154,10 +156,12 @@ def handle_bind_friend_listener(conn, addr, email, friend_listener_port: int):
                       'status': friend.status.value}
                       for friend in friends])
     for new_tuple in new_friend_requests:
+        print(f'{addr} {email} bind friend listener: call new {new_tuple}')
         operate(self_listener_conn,
                 'new',
                 email=new_tuple[0],
                 username=new_tuple[1])
+        print(f'{addr} {email} bind friend listener: call new {new_tuple} called')
     self_listener_conn.close()
     respond(conn)
 

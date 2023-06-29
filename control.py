@@ -28,7 +28,9 @@ def init():
                             callbak_new_friend_request,
                             callbak_add_new_friend,
                             callbak_delete_friend, callbak_init_friend_list)
+
     friend.run()
+    print("friend_runed")
 
 
 def init_after_login(real_one):
@@ -37,6 +39,7 @@ def init_after_login(real_one):
     global sc
     update_front_entity(real_one)
     sc.bind_friend_listener(friend)
+    print('friend_bind')
     P_listener = PeerListener(recv_message)
     P_listener.run()
     sc.bind_peer_listener(P_listener)
@@ -144,8 +147,8 @@ def register(email, username, pwd):  # 如果成功返回1，错误返回0，后
     sc = ServerConnection()
     sc.connect()
     # 发验证码邮件
-    response=sc.register(email, username, pwd, ver_code)
-    #print(sc.last_response.status)
+    response = sc.register(email, username, pwd, ver_code)
+    # print(sc.last_response.status)
     if response.status == Response.Status.Positive:
         # 验证成功，注册成功
         sc.close()
@@ -175,6 +178,8 @@ def callbak_update_friend_status(user):
 
 def callbak_new_friend_request(user):
     # 别人来的新好友请求，要和前端商量怎么提示
+    print('new_friend_request')
+    print(user.__dict__)
     global friend_new_ls
     friend_new_ls.append(user)
     update_front_friend_new_ls()
@@ -220,6 +225,7 @@ def callbak_delete_friend(user):
 
 def callbak_init_friend_list(acquired_friend_ls):
     global friend_ls
+    print(acquired_friend_ls)
     friend_ls_lock.acquire()
     friend_ls = acquired_friend_ls
     friend_ls_lock.release()
@@ -305,23 +311,24 @@ def get_message(from_email):
 
 def request_add_friend(target_email):  # 如果成功就返回1，不然就返回0和错误码(未知错误），返回-1表示用户已存在
     global sc
-    sc.find_user()
-    if sc.last_response != Response.Status.Positive:
-        # 用户已存在
-        return -1, sc.last_response
+    sc.find_user(target_email)
+    if sc.last_response.status != Response.Status.Positive:
+    # 用户已存在
+        return 2
     sc.add_friend(target_email)
-    if sc.last_response != Response.Status.Positive:
-        return 0, sc.last_response
+    print(sc.last_response.__dict__)
+    if sc.last_response.status != Response.Status.Positive:
+        return 0
     else:
-        return 1, 0
+        return 1
 
 
 def confirm_add_friend(target_email):  # 如果成功就返回1，不然就返回0和错误码
     global sc
     global friend_new_ls
     sc.confirm_friend(target_email)
-    if sc.last_response != Response.Status.Positive:
-        return 0, sc.last_response
+    if sc.last_response.status != Response.Status.Positive:
+        return 0
     else:
         for i in range(len(friend_new_ls)):
             if friend_new_ls[i].email == target_email:
@@ -329,16 +336,16 @@ def confirm_add_friend(target_email):  # 如果成功就返回1，不然就返�
                 break
         update_front_friend_new_ls()
         # update_front_friend_ls()
-        return 1, 0
+        return 1
 
 
 def delete_friend(target_email):
     global sc
     sc.delete_friend(target_email)
-    if sc.last_response != Response.Status.Positive:
-        return 0, sc.last_response
+    if sc.last_response.status != Response.Status.Positive:
+        return 0
     else:
-        return 1, 0
+        return 1
 
 
 if __name__ == '__main__':

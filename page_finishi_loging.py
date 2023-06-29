@@ -1,7 +1,7 @@
 from tkinter import *
 from tkinter.ttk import *
 from typing import Dict
-from hkb import *
+from buptchat import *
 
 class WinGUI(Tk):
     widget_dic: Dict[str, Widget] = {}
@@ -73,5 +73,6 @@ def run():
     win.mainloop()
     print("这里要放应用的接口")
     app = QApplication(sys.argv)
-    Example('kb', '1429099037@qq.com')
+    bupt_chat=BuptChat('kb', '1429099037@qq.com')
+    init_after_login(bupt_chat)
     sys.exit(app.exec_())
