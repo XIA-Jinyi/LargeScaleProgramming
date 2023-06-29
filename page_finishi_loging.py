@@ -73,6 +73,7 @@ def run():
     win.mainloop()
     print("这里要放应用的接口")
     app = QApplication(sys.argv)
-    bupt_chat=BuptChat('kb', '1429099037@qq.com')
+    bupt_chat=BuptChat('我')
     init_after_login(bupt_chat)
+    #bupt_chat.show()
     sys.exit(app.exec_())

@@ -1,5 +1,6 @@
 import sys
 from PyQt5.QtWidgets import *
+from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import QCoreApplication, Qt
 from windows_final import *
@@ -10,54 +11,24 @@ import control
 import functools
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-'''
-control.friend_ls = [User() for _ in range(2)]
-for i in range(2):
-    control.friend_ls[i].email = '1257820962@qq.com'
-    control.friend_ls[i].username = '111'
-    control.friend_ls[i].status = '1'
-
-control.friend_ls[0].email = '1257820962@qq.com'
-control.friend_ls[1].email = '1429099037@qq.com'
-
-control.friend_ls[0].username = '张宇轩'
-control.friend_ls[1].username = '黄凯博'
-
-control.friend_ls[0].status = 0
-control.friend_ls[1].status = 1
-
-control.friend_new_ls = [User() for _ in range(3)]
-for i in range(3):
-    control.friend_new_ls[i].email = '1257820962@qq.com'
-    control.friend_new_ls[i].username = '111'
-    control.friend_new_ls[i].status = '1'
-
-control.friend_new_ls[0].email = 'first@qq.com'
-control.friend_new_ls[1].email = 'second@qq.com'
-control.friend_new_ls[2].email = 'third@qq.com'
-
-control.friend_new_ls[0].username = '张宇轩'
-control.friend_new_ls[1].username = '黄凯博'
-control.friend_new_ls[2].username = 'hgl'
-
-control.friend_new_ls[0].status = 0
-control.friend_new_ls[1].status = 1
-control.friend_new_ls[2].status = 1
-
-'''
-
 
 class BuptChat(QMainWindow, Ui_MainWindow):
-    def __init__(self, username, email):
+    updateFriendList = QtCore.pyqtSignal()
+    clearTextBrowser = QtCore.pyqtSignal()
+    setFriendName = QtCore.pyqtSignal()
+
+    def __init__(self, username):
         super().__init__()
         self.setupUi(self)
         self.username = username
-        self.email = email
 
         # 这个add_friend_status用于判断是否可以加好友
         self.add_friend_status = 1
         self.message = ""
         self.sender_name = ""
+        self.updateFriendList.connect(self.front_update_friend_ls)
+        self.clearTextBrowser.connect(self.textBrowser.clear)
+        self.setFriendName.connect(lambda: self.friend_name.setText(''))
 
         self.chatObject = ''
         self.add.clicked.connect(self.showMessageBox)
@@ -68,7 +39,6 @@ class BuptChat(QMainWindow, Ui_MainWindow):
         self.button_lst = []
         self.accept_lst = []
         self.refuse_lst = []
-        update_front_entity(self)
 
         self.chatlayout = QGridLayout()
         self.friend_list.setLayout(self.chatlayout)
@@ -77,10 +47,11 @@ class BuptChat(QMainWindow, Ui_MainWindow):
         self.initUI()
 
     def createButton(self, friend):
-        if friend.status == 0:
-            status = '离线'
-        else:
+        if friend.status == 1:
             status = '在线'
+        else:
+            status = '离线'
+            return 0
         btn = QtWidgets.QPushButton(f"{friend.username}({status})\n{friend.email}", self.friend_list)
         btn.setObjectName(friend.email)
         btn.clicked.connect(lambda: self.set_chatObject(friend.email))
@@ -96,9 +67,10 @@ class BuptChat(QMainWindow, Ui_MainWindow):
         self.chatlayout.setSpacing(10)
 
         for i, friend in enumerate(control.friend_ls):
-            print('iiiiii')
             print(friend.email)
             btn = self.createButton(friend)
+            if (btn == 0):
+                continue
             btn.setGeometry(0, y, 180, 50)
             btn.setFixedSize(180, 50)
             self.chatlayout.addWidget(btn, i, 0, Qt.AlignTop)
@@ -138,12 +110,13 @@ class BuptChat(QMainWindow, Ui_MainWindow):
         显示message到聊天窗口,让textBrowser至于顶层
         '''
         self.textBrowser.clear()
+        self.set_chatObject(email)
         text = get_message(email)
-        string = text.split('$')
-        for i in range(len(string)):
-            result = string[i].split('<')
-            self.textBrowser.append(result[0] + ':' + '\n' + result[1])
-
+        if (text != ''):
+            string = text.split('$')
+            for i in range(len(string)):
+                result = string[i].split('<')
+                self.textBrowser.append(result[0] + ':' + '\n' + result[1])
         self.textBrowser.raise_()
 
     def confirm_add_friend(self, tar_email):
@@ -180,7 +153,7 @@ class BuptChat(QMainWindow, Ui_MainWindow):
         """
         self.setWindowTitle('buptchat')
         self.setWindowIcon(QIcon('buptchat.png'))
-        self.front_update_friend_ls()
+        # self.front_update_friend_ls()
         self.show()
 
     def closeEvent(self, event):
@@ -208,10 +181,10 @@ class BuptChat(QMainWindow, Ui_MainWindow):
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
-            self.remove_friend(self.chatObject)
-            self.textBrowser.clear()
-            self.front_update_friend_ls()
-            self.friend_name.setText(' ')
+            delete_friend(self.chatObject)
+            # self.textBrowser.clear()
+            # self.front_update_friend_ls()
+            # self.friend_name.setText(' ')
         else:
             pass
 
@@ -224,8 +197,6 @@ class BuptChat(QMainWindow, Ui_MainWindow):
     def set_chatObject(self, chatObject):
         self.chatObject = chatObject
 
-    def set_email(self, email):
-        self.email = email
 
     def set_add_friend_status(self, add_friend_status):
         self.add_friend_status = add_friend_status
@@ -239,6 +210,10 @@ class BuptChat(QMainWindow, Ui_MainWindow):
 
     def transfer(self):
         text = self.textEdit.toHtml()
+        build_message(self.textEdit.toPlainText())
+        print('after_build')
+        send_message(self.chatObject)
+        print('after_send')
         self.textBrowser.append(f"<b>{self.username}:</b> {text}")
         self.textEdit.clear()
 
@@ -252,11 +227,3 @@ class BuptChat(QMainWindow, Ui_MainWindow):
 
     def get_friend_request(self):
         self.search_edit.toPlainText()
-
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = BuptChat('kb', '1429099037@qq.com')
-    control.init_after_login(ex)
-    ex.receive_message(sender_name='xjy', message="kb")
-    sys.exit(app.exec_())

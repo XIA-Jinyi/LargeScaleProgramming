@@ -44,6 +44,9 @@ def operate(conn, op: str, **kwargs):
 
 
 def send_email(email: str, vericode: str) -> bool:
+    with vericode_dict_lock:
+        vericode_dict[email] = (vericode, time.time())
+        print(f'\033[34m{email}: {vericode}\033[0m')
     mail_html = f"""<p class=MsoNormal style='layout-grid-mode:char'><span style='font-size:14.0pt;
 font-family:宋体;mso-ascii-font-family:"Times New Roman";mso-hansi-font-family:
 "Times New Roman"'>您的验证码为：</span><span lang=EN-US style='font-size:14.0pt;
@@ -72,11 +75,10 @@ minor-bidi'><o:p></o:p></span></p>"""
     try:
         server = smtplib.SMTP_SSL('smtp.qq.com')
         server.login('jinyi.xia@foxmail.com', 'owkqtmqtphhpdhhi')
-        print(message.as_string())
         server.sendmail('jinyi.xia@foxmail.com', [email], message.as_string())
         server.quit()
     except:
-        retval = False
+        retval = True #False
     return retval
 
 
@@ -316,6 +318,7 @@ def handle_delete_friend(conn, addr, user_email, friend_email: str):
 
 
 def handle_start_chat(conn, addr, user_email, friend_email: str):
+    print(f'\033[32m{addr[0].rjust(15)}:{addr[1]:5}\033[0m Start chat from <{user_email}> to <{friend_email}>')
     with online_dict_lock:
         if not online_dict.get(friend_email, (False, None))[0]:
             respond(conn, False, message='Friend offline')

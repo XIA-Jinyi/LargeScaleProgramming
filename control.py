@@ -5,7 +5,7 @@ import sqlite3
 import base64
 import time
 
-message_db_con = sqlite3.connect('message.db')
+#message_db_con = sqlite3.connect('message.db')
 sc = ServerConnection()
 friend_ls = []
 friend_ls_lock = Lock()
@@ -17,7 +17,7 @@ message = Message()
 front_entity = None
 friend = None
 P_listener = None
-
+initialized=0
 
 def init():
     global sc
@@ -54,7 +54,7 @@ def update_front_entity(real_one):
 
 def update_front_friend_ls():  # 提醒前端更新friend_list
     global front_entity
-    front_entity.front_update_friend_ls()
+    front_entity.updateFriendList.emit()
     return
 
 
@@ -64,10 +64,11 @@ def update_front_friend_new_ls():  # 提醒前端更新好友申请列表
     return
 
 
-def update_communication(email, message_str):
+def update_communication(username,email, message_str):
     global front_entity
+    print("update_communication_called")
     if email == front_entity.chatObject:
-        front_entity.send_message(email, message_str)
+        front_entity.receive_message(username, message_str)
     return
 
 
@@ -173,6 +174,7 @@ def callbak_update_friend_status(user):
             # friend_ls[i].username=user.username
             break
     friend_ls_lock.release()
+    update_front_friend_ls()
     return
 
 
@@ -213,6 +215,8 @@ def callbak_add_new_friend(user):
 
 def callbak_delete_friend(user):
     global friend_ls
+    global front_entity
+
     friend_ls_lock.acquire()
     for i in range(len(friend_ls)):
         if user.email == friend_ls[i].email:
@@ -220,74 +224,95 @@ def callbak_delete_friend(user):
             break
     friend_ls_lock.release()
     update_front_friend_ls()
+    front_entity.clearTextBrowser.emit()
+    front_entity.setFriendName.emit()
     return
 
 
 def callbak_init_friend_list(acquired_friend_ls):
     global friend_ls
+    global initialized
+    global front_entity
     print(acquired_friend_ls)
     friend_ls_lock.acquire()
     friend_ls = acquired_friend_ls
     friend_ls_lock.release()
-    for i in range(len(friend_ls)):
-        print(friend_ls[i].email)
+    #u=User()
+    #u.email='555'
+    #friend_new_ls.append(u)
+    #front_entity.front_update_friend_ls()
     update_front_friend_ls()
     print("call update front friend list")
     return
 
 
 def recv_message(email, time_stamp, message_recv):
-    global message_db_con
+    #global message_db_con
     global client_account
-    while not message_db_con:
-        message_db_con = sqlite3.connect('message.db')
+    print("recv_called")
+    message_db_con = sqlite3.connect('message.db')
     cursor = message_db_con.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='message'")
+    cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", ('message_T',))
     result = cursor.fetchone()
-    # 以base64编码存储数据
-    base64_string = base64.b64encode(message_recv.content.decode("utf8"))
-    if not result:
+    if result[0] == 0:
         # 没有表就建表
         cursor.execute('''CREATE TABLE message_T
-                (sender CHAR(50)    NOT NULL,
-                recver CHAR(50)     NOT NULL,
-                timestamp FLOAT     NOT NULL,
-                message CHAR(500)    NOT NULL);''')
+                            (sender CHAR(50)    NOT NULL,
+                            recver CHAR(50)     NOT NULL,
+                            timestamp FLOAT     NOT NULL,
+                            message CHAR(500)    NOT NULL);''')
+    # if not P_sender:
+    print("recv_called")
+    #print(f'{message.content}')
+    base64_string = base64.b64encode(message_recv.content).decode()
     cursor.execute("INSERT INTO message_T (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
                    (email, client_account, time_stamp, base64_string))
     message_db_con.commit()
-    update_communication(email, message_recv.content.decode("utf8"))
+    print("recv_sql_finished")
+    tmp_u_name=''
+    for i in range(len(friend_ls)):
+        if friend_ls[i].email==email:
+            tmp_u_name=friend_ls[i].username
+            break
+    update_communication(tmp_u_name,email, message_recv.content.decode("utf8"))
     return
 
 
 def send_message(target_email):
     global message
-    global message_db_con
+    #global message_db_con
     global client_account
     global P_sender
     global sc
-    while not message_db_con:
-        message_db_con = sqlite3.connect('message.db')
+    message_db_con = sqlite3.connect('message.db')
     cursor = message_db_con.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='message'")
+    cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", ('message_T',))
     result = cursor.fetchone()
-    # 以base64编码存储数据
-    base64_string = base64.b64encode(message.content.decode("utf8"))
-    if not result:
+    if result[0] == 0:
         # 没有表就建表
         cursor.execute('''CREATE TABLE message_T
-                (sender CHAR(50)    NOT NULL,
-                recver CHAR(50)     NOT NULL,
-                timestamp FLOAT     NOT NULL,
-                message CHAR(500)    NOT NULL);''')
+                        (sender CHAR(50)    NOT NULL,
+                        recver CHAR(50)     NOT NULL,
+                        timestamp FLOAT     NOT NULL,
+                        message CHAR(500)    NOT NULL);''')
     # if not P_sender:
-    P_sender = PeerSender(sc.start_chat(target_email))
-    response_in = P_sender.send(message)
-    if response_in.status == Response.Status.Positive:
+    print("before_base64")
+    base64_string = base64.b64encode(message.content).decode()
+    print("after_base64")
+    response=sc.start_chat(target_email)
+    print("p_sender_status:")
+    print(response.status)
+    P_sender = PeerSender(response)
+    print("peer_sender_sucess")
+    P_sender.send(message)
+    print("send_sucess")
+    #print(response_in.status)
+    #if response_in.status == Response.Status.Positive:
         # base64_string = base64.b64encode(message.content).decode("utf8")
-        cursor.execute("INSERT INTO message_T (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
-                       (client_account, target_email, time.time(), base64_string))
-        message_db_con.commit()
+    cursor.execute("INSERT INTO message_T (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
+                    (client_account, target_email, time.time(), base64_string))
+    print('sql_sucess')
+    message_db_con.commit()
     P_sender.close()
     return
 
@@ -295,20 +320,36 @@ def send_message(target_email):
 def get_message(from_email):
     # 返回消息的base64编码，以$间隔
     global client_account
-    global message_db_con
-    while not message_db_con:
-        message_db_con = sqlite3.connect('message.db')
+    #global message_db_con
+    message_db_con = sqlite3.connect('message.db')
     cursor = message_db_con.cursor()
+    cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", ('message_T',))
+    result = cursor.fetchone()
+    if result[0]==0:
+            # 没有表就建表
+        cursor.execute('''CREATE TABLE message_T
+                    (sender CHAR(50)    NOT NULL,
+                    recver CHAR(50)     NOT NULL,
+                    timestamp FLOAT     NOT NULL,
+                    message CHAR(500)    NOT NULL);''')
+    print("connected")
+    cursor = message_db_con.cursor()
+    print('1')
     cursor.execute(
-        f"SELECT sender,message FROM message_T WHERE (sender=\'{from_email}\' AND recver=\'{client_email}\')"
-        f" OR (recver=\'{client_email}\' AND sender=\'{from_email}\') ORDER BY timestamp ascend")
+        f"SELECT sender,message FROM message_T WHERE (sender=\'{from_email}\' AND recver=\'{client_account}\') OR (recver=\'{client_account}\' AND sender=\'{from_email}\') ORDER BY timestamp ASC")
     result = cursor.fetchall()
 
     """
     [('1_sender', '1_message'), ('2_sender', '2_message'),...]
     """
     # <分割1_sender,1_message,$分割1，2
-    result_str = '$'.join('<'.join(group) for group in result)
+    print('before_split')
+    print(f'====={result}=====')
+    result_str = '$'.join('<'.join([group[0], base64.b64decode(group[1]).decode()]) for group in result)
+    print(f'====={result_str}=====')
+    print('geted')
+    print(result_str)
+    print('end')
     return result_str
 
 
@@ -332,38 +373,37 @@ def request_add_friend(target_email):  # 如果成功就返回1，不然就返�
 def ctrl_confirm_add_friend(target_email):  # 如果成功就返回1，不然就返回0和错误码
     global sc
     global friend_new_ls
+    global front_entity
     sc.confirm_friend(target_email)
     if sc.last_response.status != Response.Status.Positive:
         return 0
     else:
         for i in range(len(friend_new_ls)):
-            if friend_new_ls[i].email == target_email:
-                del friend_new_ls[i]
-                break
-        update_front_friend_new_ls()
+            pass
+            #if friend_new_ls[i].email == target_email:
+                #del friend_new_ls[i]
+                #break
+        #update_front_friend_new_ls()
+        front_entity.confirm_add_friend(target_email)
         # update_front_friend_ls()
         return 1
 
 
 def delete_friend(target_email):
     global sc
+    global friend_ls
     sc.delete_friend(target_email)
     if sc.last_response.status != Response.Status.Positive:
         return 0
     else:
+        friend_ls_lock.acquire()
+        for i in range(len(friend_ls)):
+            if friend_ls[i].email==target_email:
+                del friend_ls[i]
+                break
+        friend_ls_lock.release()
+        update_front_friend_ls()
         return 1
 
-
-if __name__ == '__main__':
-    response = sc.connect()
-    if response.status != Response.Status.Positive:
-        exit(0)
-    friend = FriendListener(callbak_update_friend_status,
-                            callbak_new_friend_request,
-                            callbak_add_new_friend,
-                            callbak_delete_friend, callbak_init_friend_list)
-    friend.run()
-    sc.bind_friend_listener(friend)
-    P_listener = PeerListener(recv_message)
-    P_listener.run()
-    sc.bind_peer_listener(P_listener)
+#client_account='222'
+#get_message('111')
