@@ -428,7 +428,7 @@ class PeerSender:
         self.__sock.connect((self.dest_ip, self.dest_port))
 
     def __send_pic(self, post: str):
-        pic_no = random.randint(1, 14)
+        pic_no = random.randint(1, 100)
         secret_img = lsb.hide(f'imgs/{pic_no}.jpg', post)
         bytes_io = io.BytesIO()
         secret_img.save(bytes_io, format="PNG")
