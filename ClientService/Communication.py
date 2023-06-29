@@ -6,6 +6,16 @@ import Const
 import time
 import hashlib
 import threading
+import Crypto.PublicKey.RSA
+import Crypto.Cipher.PKCS1_v1_5
+import Crypto.Random
+import Crypto.Cipher.AES
+import base64
+from stegano import lsb
+import random
+import datetime
+from PIL import Image
+import io
 
 
 class FriendListener:
@@ -55,25 +65,25 @@ class FriendListener:
                 user = User()
                 user.email = msg['content']['email']
                 user.status = msg['content']['status']
-                print('FriendListener: Call status_callback.')
+                # print('FriendListener: Call status_callback.')
                 self.status_callback(user)
             elif msg['op'] == 'new':
                 user = User()
                 user.email = msg['content']['email']
                 user.username = msg['content']['username']
-                print('FriendListener: Call new_callback.')
+                # print('FriendListener: Call new_callback.')
                 self.new_callback(user)
             elif msg['op'] == 'add':
                 user = User()
                 user.email = msg['content']['email']
                 user.username = msg['content']['username']
                 user.status = msg['content']['status']
-                print('FriendListener: Call add_callback.')
+                # print('FriendListener: Call add_callback.')
                 self.add_callback(user)
             elif msg['op'] == 'delete':
                 user = User()
                 user.email = msg['content']['email']
-                print('FriendListener: Call delete_callback.')
+                # print('FriendListener: Call delete_callback.')
                 self.delete_callback(user)
             elif msg['op'] == 'init':
                 users = []
@@ -83,7 +93,7 @@ class FriendListener:
                     user.username = friend['username']
                     user.status = friend['status']
                     users.append(user)
-                print('FriendListener: Call init_callback.')
+                # print('FriendListener: Call init_callback.')
                 self.init_callback(users)
             else:
                 hold_conn = False
@@ -124,27 +134,48 @@ class PeerListener:
             except:
                 self.port -= 1
         self.__sock = sock
+        # Generate RSA key
+        self.__gen_rand_bytes = Crypto.Random.new().read
+        rsa = Crypto.PublicKey.RSA.generate(1024, self.__gen_rand_bytes)
+        self.__private_key = rsa
+        self.public_key = rsa.publickey()
 
-    def __handle_conn(self, conn: socket.socket, addr: tuple[str, int]):
+    def __handle_conn(self, conn: socket.socket, addr: tuple[str, int], cipher):
         hold_conn = True
         while hold_conn:
             try:
-                msg_bytes = conn.recv(Const.buf_len)
-                msg = json.loads(msg_bytes.decode('utf-8'))
-            except:
+                # msg_bytes = conn.recv(Const.buf_len)
+                # post = json.loads(msg_bytes.decode('utf-8'))
                 hold_conn = False
+                group_len = int(conn.recv(Const.buf_len).decode())
+                full_msg = b''
+                for i in range(group_len):
+                    conn.send(f'{i}'.encode())
+                    full_msg += conn.recv(Const.buf_len)
+                img_io = io.BytesIO(full_msg)
+                img = Image.open(img_io)
+                img.show()
+                post_str = lsb.reveal(img_io)
+                post_str = post_str[2:] + '\"}'
+                post = json.loads(post_str)
+            except:
                 break
+            aes_key = cipher.decrypt(base64.b64decode(post['key']), 0)
+            iv = base64.b64decode(post['iv'])
+            aes = Crypto.Cipher.AES.new(aes_key, Crypto.Cipher.AES.MODE_CFB, iv)
+            msg = aes.decrypt(base64.b64decode(post['msg']))
             message = Message()
-            message.attributes = msg[0]['attributes']
-            message.content = msg[0]['content'].encode()
-            self.callback(msg[1], time.time(), message)
+            message.content = msg
+            message.attributes = post['attrs']
+            self.callback(post['sender'], time.time(), message)
         conn.close()
 
     def __listen(self):
         self.__sock.listen(8)
         while True:
             conn, addr = self.__sock.accept()
-            handle_thread = threading.Thread(target=self.__handle_conn, args=(conn, addr))
+            cipher = Crypto.Cipher.PKCS1_v1_5.new(self.__private_key)
+            handle_thread = threading.Thread(target=self.__handle_conn, args=(conn, addr, cipher))
             handle_thread.daemon = True
             handle_thread.start()
 
@@ -304,7 +335,7 @@ class ServerConnection:
         Returns:
             Response: 响应
         """
-        self.last_response = self.__send('bind_peer_listener', port=peer_listener.port)
+        self.last_response = self.__send('bind_peer_listener', port=peer_listener.port, public_key=peer_listener.public_key.exportKey().decode())
         return self.last_response
 
     def find_user(self, user_email: str) -> Response:
@@ -391,10 +422,35 @@ class PeerSender:
         self.dest_ip: str = server_response.content['ip']
         self.dest_port: int = server_response.content['port']
         self.email = server_response.content['my_email']
+        self.dest_pub_key = Crypto.PublicKey.RSA.importKey(server_response.content['public_key'])
         self.last_response = Response()
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__sock.connect((self.dest_ip, self.dest_port))
-        pass
+
+    def __send_pic(self, post: str):
+        pic_no = random.randint(1, 14)
+        secret_img = lsb.hide(f'imgs/{pic_no}.jpg', post)
+        bytes_io = io.BytesIO()
+        secret_img.save(bytes_io, format="PNG")
+        secret_img.show()
+        full_msg = bytes_io.getvalue()
+        full_len = len(full_msg)
+        msg_group = []
+        start_index = 0
+        end_index = 3072 if full_len >= 3072 else full_len
+        while True:
+            msg_group.append(full_msg[start_index:end_index])
+            if end_index == full_len:
+                break
+            else:
+                start_index += 3072
+                end_index = min(3072 + end_index, full_len)
+        self.__sock.send(f'{len(msg_group)}'.encode())
+        for i in range(len(msg_group)):
+            self.__sock.recv(Const.buf_len)
+            self.__sock.send(msg_group[i])
+        self.__sock.recv(Const.buf_len)
+        print('\033[1,34mSENT\033[0m')
 
     def send(self, message: Message) -> Response:
         """发送消息
@@ -405,9 +461,18 @@ class PeerSender:
         Returns:
             Response: 响应
         """
-        message.content = message.content.decode()
-        msg_str = json.dumps([message.__dict__, self.email])
-        self.__sock.send(msg_str.encode())
+        iv = Crypto.Random.new().read(16)
+        aes_key = Crypto.Random.new().read(16)
+        aes = Crypto.Cipher.AES.new(aes_key, Crypto.Cipher.AES.MODE_CFB, iv)
+        rsa_cipher = Crypto.Cipher.PKCS1_v1_5.new(self.dest_pub_key)
+        post = {}
+        post['key'] = base64.b64encode(rsa_cipher.encrypt(aes_key)).decode()
+        post['attrs'] = message.attributes
+        post['msg'] = base64.b64encode(aes.encrypt(message.content)).decode()
+        post['sender'] = self.email
+        post['iv'] = base64.b64encode(iv).decode()
+        self.__send_pic(json.dumps(post).encode())
+        #self.__sock.send(json.dumps(post).encode())
 
     def close(self) -> Response:
         """关闭连接
@@ -419,29 +484,33 @@ class PeerSender:
 
 
 if __name__ == '__main__':
-    def status_call(user):
-        print(f'Receive status {user.__dict__}')
-    def add_call(user):
-        print(f'Receive add {user.__dict__}')
-    def new_call(user):
-        print(f'Receive new {user.__dict__}')
-    def del_call(user):
-        print(f'Receive delete {user.__dict__}')
-    def init_call(l):
-        print(f'Init friend list {[u.__dict__ for u in l]}')
-    def show_call(email, t, msg):
-        print(f'Receive message from {email}: {msg.__dict__}')
-    
     hint = input('Hint:\n')
+
+    def status_call(user):
+        print(f'[{hint}]Receive status {user.__dict__}')
+    def add_call(user):
+        print(f'[{hint}]Receive add {user.__dict__}')
+    def new_call(user):
+        print(f'[{hint}]Receive new {user.__dict__}')
+    def del_call(user):
+        print(f'[{hint}]Receive delete {user.__dict__}')
+    def init_call(l):
+        print(f'[{hint}]Init friend list {[u.__dict__ for u in l]}')
+    def show_call(email, t, msg):
+        print(f'[{hint}]Receive message from {email}: {msg.__dict__}')
+    
     my_email, friend_email = 'jinyi.xia@bupt.edu.cn', '20230628101050@bupt.edu.cn'
     if hint == '1':
         my_email, friend_email = friend_email, my_email
-        # time.sleep(0.5)
+        time.sleep(0.5)
 
     sc = ServerConnection()
     r = sc.connect()
     if r.status != Response.Status.Positive:
         exit(0)
+
+    # if hint != '1':
+    #     sc.update_vericode(my_email)
     
     r = sc.password_login(my_email, '123456')
     print(f'[{hint}]password_login: {r.status} {r.content}')
@@ -463,15 +532,20 @@ if __name__ == '__main__':
     print()
 
     # if hint == '1':
+    #     r = sc.delete_friend(friend_email)
+    #     print(f'[{hint}]delete_friend: {r.status} {r.content}')
+    #     time.sleep(1)
+    #     print()
+
     #     r = sc.add_friend(friend_email)
-    #     print(f'add_friend: {r.status} {r.content}')
+    #     print(f'[{hint}]add_friend: {r.status} {r.content}')
     #     time.sleep(1)
     #     print()
     # else:
-    #     r = sc.confirm_friend(friend_email)
-    #     print(f'confirm_friend: {r.status} {r.content}')
-    #     time.sleep(1)
-    #     print()
+        # r = sc.confirm_friend(friend_email)
+        # print(f'[{hint}]confirm_friend: {r.status} {r.content}')
+        # time.sleep(1)
+        # print()
 
     # r = sc.delete_friend(friend_email)
     # print(f'delete_friend: {r.status} {r.content}')
