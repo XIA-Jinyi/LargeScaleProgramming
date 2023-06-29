@@ -96,12 +96,13 @@ class Win(WinGUI):
             page_finishi_loging.run()
         else:
             page_error.run()
-        print("判断密码完成",evt)
+        #print("判断密码完成",evt)
         
     def get_code(self,evt):
         ID = self.widget_dic["tk_input_ID_str"].get()
-        control.send_verify_code(ID)
-        print("已发送验证码",evt)
+        if control.send_verify_code(ID) == 0:
+            tkinter.messagebox.showerror(message='邮箱输入有误！')
+        #print("已发送验证码",evt)
         
     def __event_bind(self):
         self.widget_dic["tk_button_do_register"].bind('<Button-1>',self.register)

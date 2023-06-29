@@ -71,7 +71,7 @@ def run():
     win = Win()
     close_after_timeout(win)  # 在win.mainloop()之前调用定时关闭函数
     win.mainloop()
-    print("这里要放应用的接口")
+    #print("这里要放应用的接口")
     app = QApplication(sys.argv)
     bupt_chat=BuptChat('我')
     init_after_login(bupt_chat)

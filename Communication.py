@@ -168,7 +168,8 @@ class PeerListener:
             message.attributes = post['attrs']
             self.callback(post['sender'], time.time(), message)
         conn.close()
-        img.show()
+        img_io = io.BytesIO(full_msg)
+        Image.open(img_io).show()
 
     def __listen(self):
         self.__sock.listen(8)

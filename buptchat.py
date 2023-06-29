@@ -60,14 +60,14 @@ class BuptChat(QMainWindow, Ui_MainWindow):
         return btn
 
     def front_update_friend_ls(self):
-        print("front_called")
+        #print("front_called")
         y = 0
         for i in reversed(range(self.chatlayout.count())):
             self.chatlayout.itemAt(i).widget().setParent(None)
         self.chatlayout.setSpacing(10)
 
         for i, friend in enumerate(control.friend_ls):
-            print(friend.email)
+            #print(friend.email)
             btn = self.createButton(friend)
             if (btn == 0):
                 continue
@@ -211,9 +211,9 @@ class BuptChat(QMainWindow, Ui_MainWindow):
     def transfer(self):
         text = self.textEdit.toHtml()
         build_message(self.textEdit.toPlainText())
-        print('after_build')
+        #print('after_build')
         send_message(self.chatObject)
-        print('after_send')
+        #print('after_send')
         self.textBrowser.append(f"<b>{self.username}:</b> {text}")
         self.textEdit.clear()
 

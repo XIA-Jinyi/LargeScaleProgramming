@@ -189,7 +189,7 @@ class Win(WinGUI):
         """
         close_after_timeout(win)
         page_register.run()
-        print("转跳注册页面",evt)
+        #print("转跳注册页面",evt)
 
     def loging(self,evt):
         """登录转跳按钮函数
@@ -206,7 +206,7 @@ class Win(WinGUI):
             page_finishi_loging.run()
         else:
             page_error.run()
-        print("登录判定完成",evt)
+        #print("登录判定完成",evt)
 
     def code_loging(self,evt):
         """验证码登录转跳按钮函数
@@ -217,7 +217,7 @@ class Win(WinGUI):
         """
         close_after_timeout(win)
         page_code_loging.run()
-        print("验证码登录转跳",evt)
+        #print("验证码登录转跳",evt)
 
     def __event_bind(self):
         """绑定事件处理函数到相应的小部件"""

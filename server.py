@@ -80,7 +80,7 @@ minor-bidi'><o:p></o:p></span></p>"""
         server.sendmail('jinyi.xia@foxmail.com', [email], message.as_string())
         server.quit()
     except:
-        retval = True #False
+        retval = False #False
     return retval
 
 
@@ -94,15 +94,15 @@ def handle_close(conn, addr) -> None:
 
 def handle_update_vericode(conn, addr, email) -> None:
     vericode = ''.join(random.choice('23456789QWERTYUPASDFGHJKZXCVBNM98765432') for _ in range(6))
-    vericode_dict[email] = (vericode, time.time())
-    # if send_email(email, vericode):
-    #     with vericode_dict_lock:
-    #         vericode_dict[email] = (vericode, time.time())
-    #     respond(conn)
-    #     print(f'\033[32m{addr[0].rjust(15)}:{addr[1]:5}\033[0m Vericode Updated: {email} <\033[36m{vericode}\033[0m>')
-    # else:
-    #     respond(conn)
-    respond(conn)
+    # vericode_dict[email] = (vericode, time.time())
+    if send_email(email, vericode):
+        with vericode_dict_lock:
+            vericode_dict[email] = (vericode, time.time())
+        respond(conn)
+        print(f'\033[32m{addr[0].rjust(15)}:{addr[1]:5}\033[0m Vericode Updated: {email} <\033[36m{vericode}\033[0m>')
+    else:
+        respond(conn, False)
+    # respond(conn)
 
 
 def handle_register(conn, addr, email: str, username: str, password: str, vericode: str) -> bool:

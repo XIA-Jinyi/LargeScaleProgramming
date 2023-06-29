@@ -272,13 +272,13 @@ class Win(WinGUI):
             #print('2')
             control.get_verify(code)
             temp,temp1=control.register(ID, name, pw)
-            print(temp)
+            #print(temp)
             if (temp==1):
                 self.destroy()
                 page_finishi_loging.run()
             else:
                 page_error.run()
-        print("注册验证完成")
+        #print("注册验证完成")
 
     #获取验证码转跳按钮函数
     def get_code(self, evt):
@@ -289,8 +289,9 @@ class Win(WinGUI):
 
         """
         ID = self.widget_dic["tk_input_ID_str"].get()
-        control.send_verify_code(ID)
-        print("已发送验证码", evt)
+        if control.send_verify_code(ID) == 0:
+            tkinter.messagebox.showerror(message='邮箱输入有误！')
+        #print("已发送验证码", evt)
 
     def __event_bind(self):
         """绑定事件处理函数到相应的小部件"""

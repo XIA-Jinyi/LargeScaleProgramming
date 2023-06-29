@@ -4,6 +4,7 @@ from threading import Lock
 import sqlite3
 import base64
 import time
+import tkinter.messagebox
 
 #message_db_con = sqlite3.connect('message.db')
 sc = ServerConnection()
@@ -30,7 +31,7 @@ def init():
                             callbak_delete_friend, callbak_init_friend_list)
 
     friend.run()
-    print("friend_runed")
+    #print("friend_ran")
 
 
 def init_after_login(real_one):
@@ -39,7 +40,7 @@ def init_after_login(real_one):
     global sc
     update_front_entity(real_one)
     sc.bind_friend_listener(friend)
-    print('friend_bind')
+    #print('friend_bind')
     P_listener = PeerListener(recv_message)
     P_listener.run()
     sc.bind_peer_listener(P_listener)
@@ -66,7 +67,7 @@ def update_front_friend_new_ls():  # 提醒前端更新好友申请列表
 
 def update_communication(username,email, message_str):
     global front_entity
-    print("update_communication_called")
+    #print("update_communication_called")
     if email == front_entity.chatObject:
         front_entity.receive_message(username, message_str)
     return
@@ -93,9 +94,13 @@ def send_verify_code(email):
     # sc = ServerConnection()
     # sc.connect()
     client_account = email
-    sc.update_vericode(client_account)
+    response=sc.update_vericode(client_account)
     # 点输入验证码
-    return
+    if response.status==Response.Status.Positive:
+        return 1
+    else:
+        #print('RETURN 0')
+        return 0
 
 
 def login(email, pwd):  # 如果成功返回1，错误返回0，后面跟返回码
@@ -180,8 +185,8 @@ def callbak_update_friend_status(user):
 
 def callbak_new_friend_request(user):
     # 别人来的新好友请求，要和前端商量怎么提示
-    print('new_friend_request')
-    print(user.__dict__)
+    #print('new_friend_request')
+    #print(user.__dict__)
     global friend_new_ls
     friend_new_ls.append(user)
     #update_front_friend_new_ls()
@@ -233,7 +238,7 @@ def callbak_init_friend_list(acquired_friend_ls):
     global friend_ls
     global initialized
     global front_entity
-    print(acquired_friend_ls)
+    #print(acquired_friend_ls)
     friend_ls_lock.acquire()
     friend_ls = acquired_friend_ls
     friend_ls_lock.release()
@@ -242,14 +247,14 @@ def callbak_init_friend_list(acquired_friend_ls):
     #friend_new_ls.append(u)
     #front_entity.front_update_friend_ls()
     update_front_friend_ls()
-    print("call update front friend list")
+    #print("call update front friend list")
     return
 
 
 def recv_message(email, time_stamp, message_recv):
     #global message_db_con
     global client_account
-    print("recv_called")
+    #print("recv_called")
     message_db_con = sqlite3.connect('message.db')
     cursor = message_db_con.cursor()
     cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", ('message_T',))
@@ -262,13 +267,13 @@ def recv_message(email, time_stamp, message_recv):
                             timestamp FLOAT     NOT NULL,
                             message CHAR(500)    NOT NULL);''')
     # if not P_sender:
-    print("recv_called")
+    #print("recv_called")
     #print(f'{message.content}')
     base64_string = base64.b64encode(message_recv.content).decode()
     cursor.execute("INSERT INTO message_T (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
                    (email, client_account, time_stamp, base64_string))
     message_db_con.commit()
-    print("recv_sql_finished")
+    #print("recv_sql_finished")
     tmp_u_name=''
     for i in range(len(friend_ls)):
         if friend_ls[i].email==email:
@@ -296,22 +301,22 @@ def send_message(target_email):
                         timestamp FLOAT     NOT NULL,
                         message CHAR(500)    NOT NULL);''')
     # if not P_sender:
-    print("before_base64")
+    #print("before_base64")
     base64_string = base64.b64encode(message.content).decode()
-    print("after_base64")
+    #print("after_base64")
     response=sc.start_chat(target_email)
-    print("p_sender_status:")
-    print(response.status)
+    #print("p_sender_status:")
+    #print(response.status)
     P_sender = PeerSender(response)
-    print("peer_sender_sucess")
+    #print("peer_sender_sucess")
     P_sender.send(message)
-    print("send_sucess")
+    #print("send_sucess")
     #print(response_in.status)
     #if response_in.status == Response.Status.Positive:
         # base64_string = base64.b64encode(message.content).decode("utf8")
     cursor.execute("INSERT INTO message_T (sender, recver, timestamp, message) VALUES (?, ?, ?, ?)",
                     (client_account, target_email, time.time(), base64_string))
-    print('sql_sucess')
+    #print('sql_sucess')
     message_db_con.commit()
     P_sender.close()
     return
@@ -332,9 +337,9 @@ def get_message(from_email):
                     recver CHAR(50)     NOT NULL,
                     timestamp FLOAT     NOT NULL,
                     message CHAR(500)    NOT NULL);''')
-    print("connected")
+    #print("connected")
     cursor = message_db_con.cursor()
-    print('1')
+    #print('1')
     cursor.execute(
         f"SELECT sender,message FROM message_T WHERE (sender=\'{from_email}\' AND recver=\'{client_account}\') OR (recver=\'{client_account}\' AND sender=\'{from_email}\') ORDER BY timestamp ASC")
     result = cursor.fetchall()
@@ -343,13 +348,13 @@ def get_message(from_email):
     [('1_sender', '1_message'), ('2_sender', '2_message'),...]
     """
     # <分割1_sender,1_message,$分割1，2
-    print('before_split')
-    print(f'====={result}=====')
+    #print('before_split')
+    #print(f'====={result}=====')
     result_str = '$'.join('<'.join([group[0], base64.b64decode(group[1]).decode()]) for group in result)
-    print(f'====={result_str}=====')
-    print('geted')
-    print(result_str)
-    print('end')
+    #print(f'====={result_str}=====')
+    #print('geted')
+    #print(result_str)
+    #print('end')
     return result_str
 
 
@@ -363,7 +368,7 @@ def request_add_friend(target_email):  # 如果成功就返回1，不然就返�
     # 用户已存在
         return 0
     sc.add_friend(target_email)
-    print(sc.last_response.__dict__)
+    #print(sc.last_response.__dict__)
     if sc.last_response.status != Response.Status.Positive:
         return 0
     else:
