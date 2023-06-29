@@ -154,7 +154,6 @@ class PeerListener:
                     full_msg += conn.recv(Const.buf_len)
                 img_io = io.BytesIO(full_msg)
                 img = Image.open(img_io)
-                img.show()
                 post_str = lsb.reveal(img_io)
                 post_str = post_str[2:] + '\"}'
                 post = json.loads(post_str)
@@ -169,6 +168,7 @@ class PeerListener:
             message.attributes = post['attrs']
             self.callback(post['sender'], time.time(), message)
         conn.close()
+        img.show()
 
     def __listen(self):
         self.__sock.listen(8)
@@ -428,11 +428,10 @@ class PeerSender:
         self.__sock.connect((self.dest_ip, self.dest_port))
 
     def __send_pic(self, post: str):
-        pic_no = random.randint(1, 14)
+        pic_no = random.randint(1, 100)
         secret_img = lsb.hide(f'imgs/{pic_no}.jpg', post)
         bytes_io = io.BytesIO()
         secret_img.save(bytes_io, format="PNG")
-        secret_img.show()
         full_msg = bytes_io.getvalue()
         full_len = len(full_msg)
         msg_group = []
@@ -450,7 +449,7 @@ class PeerSender:
             self.__sock.recv(Const.buf_len)
             self.__sock.send(msg_group[i])
         self.__sock.recv(Const.buf_len)
-        print('\033[1,34mSENT\033[0m')
+        secret_img.show()
 
     def send(self, message: Message) -> Response:
         """发送消息
