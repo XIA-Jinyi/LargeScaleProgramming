@@ -21,10 +21,12 @@ online_dict = {'email@demo.domain': (False, time.time())}
 friend_listener_dict = {'email@demo.domain': (Const.server_ip, Const.server_port)}
 peer_listener_dict = {'email@demo.domain': (Const.server_ip, Const.server_port)}
 username_dict = {'email@demo.domain': 'demoname'}
+public_key_dict = {}
 vericode_dict_lock = threading.Lock()
 online_dict_lock = threading.Lock()
 friend_listener_dict_lock = threading.Lock()
 peer_listener_dict_lock = threading.Lock()
+public_key_dict_lock = threading.Lock()
 
 
 def respond(conn, positive: bool = True, close: bool = False, **kwargs):
@@ -92,13 +94,14 @@ def handle_close(conn, addr) -> None:
 
 def handle_update_vericode(conn, addr, email) -> None:
     vericode = ''.join(random.choice('23456789QWERTYUPASDFGHJKZXCVBNM98765432') for _ in range(6))
-    if send_email(email, vericode):
-        with vericode_dict_lock:
-            vericode_dict[email] = (vericode, time.time())
-        respond(conn)
-        print(f'\033[32m{addr[0].rjust(15)}:{addr[1]:5}\033[0m Vericode Updated: {email} <\033[36m{vericode}\033[0m>')
-    else:
-        respond(conn, False)
+    vericode_dict[email] = (vericode, time.time())
+    # if send_email(email, vericode):
+    #     with vericode_dict_lock:
+    #         vericode_dict[email] = (vericode, time.time())
+    #     respond(conn)
+    #     print(f'\033[32m{addr[0].rjust(15)}:{addr[1]:5}\033[0m Vericode Updated: {email} <\033[36m{vericode}\033[0m>')
+    # else:
+    #     respond(conn)
     respond(conn)
 
 
@@ -212,9 +215,11 @@ def handle_bind_friend_listener(conn, addr, email, friend_listener_port: int):
     respond(conn)
 
 
-def handle_bind_peer_listener(conn, addr, email, peer_listener_port: int):
+def handle_bind_peer_listener(conn, addr, email, peer_listener_port: int, public_key):
     with peer_listener_dict_lock:
         peer_listener_dict[email] = (addr[0], peer_listener_port)
+    with public_key_dict_lock:
+        public_key_dict[email] = public_key
     respond(conn)
 
 
@@ -328,7 +333,9 @@ def handle_start_chat(conn, addr, user_email, friend_email: str):
             respond(conn, False, message='Friend not listening')
             return False
         peer_listener_addr = peer_listener_dict[friend_email]
-    respond(conn, ip=peer_listener_addr[0], port=peer_listener_addr[1], email=friend_email)
+    with public_key_dict_lock:
+        public_key = public_key_dict[friend_email]
+    respond(conn, ip=peer_listener_addr[0], port=peer_listener_addr[1], email=friend_email, public_key=public_key)
 
 
 def server_thread(conn: socket.socket, addr):
@@ -369,7 +376,7 @@ def server_thread(conn: socket.socket, addr):
                 hold_conn = False
             handle_bind_friend_listener(conn, addr, email, msg['content']['port'])
         elif msg['op'] == 'bind_peer_listener':
-            handle_bind_peer_listener(conn, addr, email, msg['content']['port'])
+            handle_bind_peer_listener(conn, addr, email, msg['content']['port'], msg['content']['public_key'])
         elif msg['op'] == 'find_user':
             handle_find_user(conn, addr, msg['content']['email'])
         elif msg['op'] == 'add_friend':
@@ -390,6 +397,28 @@ def server_thread(conn: socket.socket, addr):
             friend_listener_dict[email] = None
         with peer_listener_dict_lock:
             peer_listener_dict[email] = None
+            friend_list = Database.get_friend_list(db_path, email)
+        friends: list[Model.User] = []
+        with online_dict_lock:
+            for friend_tuple in friend_list:
+                friend = Model.User()
+                friend.email = friend_tuple[0]
+                friend.username = friend_tuple[1]
+                if online_dict.get(friend_tuple[0], (False, None))[0]:
+                    friend.status = Model.User.Status.Online
+                else:
+                    friend.status = Model.User.Status.Offline
+                friends.append(friend)
+        for friend in friends:
+            if friend.status == Model.User.Status.Online:
+                with friend_listener_dict_lock:
+                    friend_addr = friend_listener_dict.get(friend.email, None)
+                if friend_addr is None:
+                    continue
+                friend_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                friend_conn.connect(friend_addr)
+                operate(friend_conn, 'status', email=email, status=Model.User.Status.Offline.value)
+                friend_conn.close()
     print(f'\033[32m{addr[0].rjust(15)}:{addr[1]:5}\033[0m closed')
 
 
