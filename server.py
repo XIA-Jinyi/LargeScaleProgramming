@@ -7,6 +7,10 @@ import random
 import time
 import atexit
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
+import base64
 
 
 db_path = os.path.abspath('server.db')
@@ -39,6 +43,43 @@ def operate(conn, op: str, **kwargs):
     conn.send(json.dumps({'op': op, 'content': kwargs}).encode())
 
 
+def send_email(email: str, vericode: str) -> bool:
+    mail_html = f"""<p class=MsoNormal style='layout-grid-mode:char'><span style='font-size:14.0pt;
+font-family:宋体;mso-ascii-font-family:"Times New Roman";mso-hansi-font-family:
+"Times New Roman"'>您的验证码为：</span><span lang=EN-US style='font-size:14.0pt;
+font-family:"Times New Roman",serif;mso-fareast-font-family:宋体;mso-bidi-theme-font:
+minor-bidi'><o:p></o:p></span></p>
+<p class=MsoNormal align=center style='margin-top:7.8pt;margin-right:0cm;
+margin-bottom:7.8pt;margin-left:0cm;mso-para-margin-top:.5gd;mso-para-margin-right:
+0cm;mso-para-margin-bottom:.5gd;mso-para-margin-left:0cm;text-align:center;
+layout-grid-mode:char'><b><span lang=EN-US style='font-size:22.0pt;font-family:
+"Times New Roman",serif;mso-fareast-font-family:宋体;mso-bidi-font-family:Arial;
+letter-spacing:3.0pt'>{vericode}<o:p></o:p></span></b></p>
+<p class=MsoNormal style='layout-grid-mode:char'><span style='font-size:14.0pt;
+font-family:宋体;mso-ascii-font-family:"Times New Roman";mso-hansi-font-family:
+"Times New Roman"'>此验证码包含数字与大写英文字母，输入时请注意字母大小写是否正确。验证码</span><span lang=EN-US
+style='font-size:14.0pt;font-family:"Times New Roman",serif;mso-fareast-font-family:
+宋体;mso-bidi-theme-font:minor-bidi'>10</span><span style='font-size:14.0pt;
+font-family:宋体;mso-ascii-font-family:"Times New Roman";mso-hansi-font-family:
+"Times New Roman"'>分钟内有效。</span><span lang=EN-US style='font-size:14.0pt;
+font-family:"Times New Roman",serif;mso-fareast-font-family:宋体;mso-bidi-theme-font:
+minor-bidi'><o:p></o:p></span></p>"""
+    message = MIMEText(mail_html, 'html', 'utf-8')
+    message['From'] = 'Server <jinyi.xia@foxmail.com>'
+    message['To'] = f'<{email}>'
+    message['Subject'] = Header("验证码", 'utf-8')
+    retval = True
+    try:
+        server = smtplib.SMTP_SSL('smtp.qq.com')
+        server.login('jinyi.xia@foxmail.com', 'owkqtmqtphhpdhhi')
+        print(message.as_string())
+        server.sendmail('jinyi.xia@foxmail.com', [email], message.as_string())
+        server.quit()
+    except:
+        retval = False
+    return retval
+
+
 def handle_hello(conn, addr) -> None:
     respond(conn)
 
@@ -49,9 +90,13 @@ def handle_close(conn, addr) -> None:
 
 def handle_update_vericode(conn, addr, email) -> None:
     vericode = ''.join(random.choice('23456789QWERTYUPASDFGHJKZXCVBNM98765432') for _ in range(6))
-    with vericode_dict_lock:
-        vericode_dict[email] = (vericode, time.time())
-    print(f'Vericode Updated: {email} (\033[33m{vericode}\033[0m)')
+    if send_email(email, vericode):
+        with vericode_dict_lock:
+            vericode_dict[email] = (vericode, time.time())
+        respond(conn)
+        print(f'\033[32m{addr[0].rjust(15)}:{addr[1]:5}\033[0m Vericode Updated: {email} <\033[36m{vericode}\033[0m>')
+    else:
+        respond(conn, False)
     respond(conn)
 
 
@@ -153,12 +198,15 @@ def handle_bind_friend_listener(conn, addr, email, friend_listener_port: int):
                       'username': friend.username,
                       'status': friend.status.value}
                       for friend in friends])
+    self_listener_conn.close()
     for new_tuple in new_friend_requests:
+        self_listener_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self_listener_conn.connect((addr[0], friend_listener_port))
         operate(self_listener_conn,
                 'new',
                 email=new_tuple[0],
                 username=new_tuple[1])
-    self_listener_conn.close()
+        self_listener_conn.close()
     respond(conn)
 
 
@@ -283,7 +331,7 @@ def handle_start_chat(conn, addr, user_email, friend_email: str):
 def server_thread(conn: socket.socket, addr):
     hold_conn = True
     email = None
-    print(f'{addr[0]}:{addr[1]} connected')
+    print(f'\033[32m{addr[0].rjust(15)}:{addr[1]:5}\033[0m Connected')
     while hold_conn:
         try:
             msg_bytes = conn.recv(Const.buf_len)
@@ -332,12 +380,14 @@ def server_thread(conn: socket.socket, addr):
         else:
             respond(conn, False, message='Unknown operation')   
     conn.close()
-    with online_dict_lock:
-        if email is not None:
+    if email is not None:
+        with online_dict_lock:
             online_dict[email] = (False, time.time())
-    with friend_listener_dict_lock:
-        friend_listener_dict[email] = None
-    print(f'{addr[0]}:{addr[1]} closed')
+        with friend_listener_dict_lock:
+            friend_listener_dict[email] = None
+        with peer_listener_dict_lock:
+            peer_listener_dict[email] = None
+    print(f'\033[32m{addr[0].rjust(15)}:{addr[1]:5}\033[0m closed')
 
 
 if __name__ == '__main__':
