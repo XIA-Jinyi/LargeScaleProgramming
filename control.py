@@ -182,7 +182,7 @@ def callbak_new_friend_request(user):
     print(user.__dict__)
     global friend_new_ls
     friend_new_ls.append(user)
-    update_front_friend_new_ls()
+    #update_front_friend_new_ls()
     return
 
 
@@ -229,7 +229,10 @@ def callbak_init_friend_list(acquired_friend_ls):
     friend_ls_lock.acquire()
     friend_ls = acquired_friend_ls
     friend_ls_lock.release()
+    for i in range(len(friend_ls)):
+        print(friend_ls[i].email)
     update_front_friend_ls()
+    print("call update front friend list")
     return
 
 
@@ -311,10 +314,13 @@ def get_message(from_email):
 
 def request_add_friend(target_email):  # 如果成功就返回1，不然就返回0和错误码(未知错误），返回-1表示用户已存在
     global sc
+    global client_account
+    if target_email==client_account:
+        return 0
     sc.find_user(target_email)
     if sc.last_response.status != Response.Status.Positive:
     # 用户已存在
-        return 2
+        return 0
     sc.add_friend(target_email)
     print(sc.last_response.__dict__)
     if sc.last_response.status != Response.Status.Positive:
@@ -323,7 +329,7 @@ def request_add_friend(target_email):  # 如果成功就返回1，不然就返�
         return 1
 
 
-def confirm_add_friend(target_email):  # 如果成功就返回1，不然就返回0和错误码
+def ctrl_confirm_add_friend(target_email):  # 如果成功就返回1，不然就返回0和错误码
     global sc
     global friend_new_ls
     sc.confirm_friend(target_email)

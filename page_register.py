@@ -266,6 +266,7 @@ class Win(WinGUI):
         repw = self.widget_dic["tk_input_repw_str"].get()
         code = self.widget_dic["tk_input_code_str"].get()
         if repw!=pw:
+        #if page_test_rergister.validate_inputs(ID, name, pw, repw, code):
             page_error.run()
         else:
             #print('2')

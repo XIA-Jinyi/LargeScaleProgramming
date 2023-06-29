@@ -81,7 +81,7 @@ class BuptChat(QMainWindow, Ui_MainWindow):
             status = '离线'
         else:
             status = '在线'
-        btn = QPushButton(f"{friend.username}({status})\n{friend.email}", self.friend_list)
+        btn = QtWidgets.QPushButton(f"{friend.username}({status})\n{friend.email}", self.friend_list)
         btn.setObjectName(friend.email)
         btn.clicked.connect(lambda: self.set_chatObject(friend.email))
         btn.clicked.connect(lambda: self.set_friend_name(friend.username))
@@ -89,12 +89,15 @@ class BuptChat(QMainWindow, Ui_MainWindow):
         return btn
 
     def front_update_friend_ls(self):
+        print("front_called")
         y = 0
         for i in reversed(range(self.chatlayout.count())):
             self.chatlayout.itemAt(i).widget().setParent(None)
         self.chatlayout.setSpacing(10)
 
         for i, friend in enumerate(control.friend_ls):
+            print('iiiiii')
+            print(friend.email)
             btn = self.createButton(friend)
             btn.setGeometry(0, y, 180, 50)
             btn.setFixedSize(180, 50)
@@ -111,7 +114,7 @@ class BuptChat(QMainWindow, Ui_MainWindow):
 
         for i in range(len(control.friend_new_ls)):
             acp = QPushButton(f'接受√', self.rqwindow)
-            acp.clicked.connect(lambda _, i=i: confirm_add_friend(control.friend_new_ls[i].email))
+            acp.clicked.connect(lambda _, i=i: ctrl_confirm_add_friend(control.friend_new_ls[i].email))
             self.accept_lst.append(acp)
             ref = QPushButton('拒绝×', self.rqwindow)
             ref.clicked.connect(lambda _, i=i: self.del_add_friend(control.friend_new_ls[i].email))
@@ -190,11 +193,11 @@ class BuptChat(QMainWindow, Ui_MainWindow):
             event.ignore()
 
     def showMessageBox(self):
-        #print('1')
+        # print('1')
         text = self.search_edit.toPlainText()
-        #print(text)
+        # print(text)
         self.add_friend_status = request_add_friend(text)
-        #print(self.add_friend_status)
+        # print(self.add_friend_status)
         if self.add_friend_status == 1:
             QMessageBox.information(self, 'Message', "好友申请发送成功")
         else:
