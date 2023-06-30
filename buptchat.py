@@ -112,10 +112,17 @@ class BuptChat(QMainWindow, Ui_MainWindow):
         self.textBrowser.clear()
         self.set_chatObject(email)
         text = get_message(email)
+        #print(text)
         if (text != ''):
             string = text.split('$')
             for i in range(len(string)):
                 result = string[i].split('<')
+                if result[0] == control.client_account:
+                    result[0] = '我'
+                else:
+                    for friend in control.friend_ls:
+                        if friend.email == result[0]:
+                            result[0] = friend.username
                 self.textBrowser.append(result[0] + ':' + '\n' + result[1])
         self.textBrowser.raise_()
 

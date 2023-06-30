@@ -341,7 +341,7 @@ def get_message(from_email):
     cursor = message_db_con.cursor()
     #print('1')
     cursor.execute(
-        f"SELECT sender,message FROM message_T WHERE (sender=\'{from_email}\' AND recver=\'{client_account}\') OR (recver=\'{client_account}\' AND sender=\'{from_email}\') ORDER BY timestamp ASC")
+        f"SELECT sender,message FROM message_T WHERE (sender=\'{from_email}\' AND recver=\'{client_account}\') OR (recver=\'{from_email}\' AND sender=\'{client_account}\') ORDER BY timestamp ASC")
     result = cursor.fetchall()
 
     """
@@ -350,6 +350,9 @@ def get_message(from_email):
     # <分割1_sender,1_message,$分割1，2
     #print('before_split')
     #print(f'====={result}=====')
+    #单电脑环境：
+    # result_str = '$'.join('<'.join([group[0], base64.b64decode(group[1]).decode()]) for group in result[::2])
+    #多电脑环境：
     result_str = '$'.join('<'.join([group[0], base64.b64decode(group[1]).decode()]) for group in result)
     #print(f'====={result_str}=====')
     #print('geted')
