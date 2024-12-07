@@ -11,6 +11,7 @@ class WinGUI(Tk):
         self.widget_dic["tk_label_title"] = self.__tk_label_title(self)
         self.widget_dic["tk_label_content"] = self.__tk_label_content(self)
 
+    
     def __win(self):
         self.title("error")
         # 设置窗口大小、居中
